@@ -66,12 +66,19 @@ public class QueryController(MangaContext mangaContext) : ControllerBase
     [ProducesResponseType<List<MissingChaptersByManga>>(Status200OK, "application/json")]
     public async Task<Ok<List<MissingChaptersByManga>>> GetMissingChaptersByManga()
     {
-        List<MissingChaptersByManga> result = await mangaContext.Chapters
+        // EF Core can't translate a GroupBy projected straight into a record constructor -
+        // project into an anonymous type (translatable to SQL GROUP BY/COUNT) first, then
+        // build the DTO client-side after materializing.
+        var missingByManga = await mangaContext.Chapters
             .Where(c => !c.Downloaded)
             .GroupBy(c => new { c.ParentMangaId, c.ParentManga.Name })
-            .Select(g => new MissingChaptersByManga(g.Key.ParentMangaId, g.Key.Name, g.Count()))
+            .Select(g => new { g.Key.ParentMangaId, g.Key.Name, MissingCount = g.Count() })
             .OrderByDescending(g => g.MissingCount)
             .ToListAsync(HttpContext.RequestAborted);
+
+        List<MissingChaptersByManga> result = missingByManga
+            .Select(g => new MissingChaptersByManga(g.ParentMangaId, g.Name, g.MissingCount))
+            .ToList();
         return TypedResults.Ok(result);
     }
 }
