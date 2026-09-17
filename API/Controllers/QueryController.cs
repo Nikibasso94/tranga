@@ -57,4 +57,21 @@ public class QueryController(MangaContext mangaContext) : ControllerBase
                                                                    """).FirstAsync(HttpContext.RequestAborted);
         return TypedResults.Ok(stats);
     }
+
+    /// <summary>
+    /// Returns the number of missing (not downloaded) Chapters per Manga, descending by missing count
+    /// </summary>
+    /// <response code="200"></response>
+    [HttpGet("Stats/MissingChapters")]
+    [ProducesResponseType<List<MissingChaptersByManga>>(Status200OK, "application/json")]
+    public async Task<Ok<List<MissingChaptersByManga>>> GetMissingChaptersByManga()
+    {
+        List<MissingChaptersByManga> result = await mangaContext.Chapters
+            .Where(c => !c.Downloaded)
+            .GroupBy(c => new { c.ParentMangaId, c.ParentManga.Name })
+            .Select(g => new MissingChaptersByManga(g.Key.ParentMangaId, g.Key.Name, g.Count()))
+            .OrderByDescending(g => g.MissingCount)
+            .ToListAsync(HttpContext.RequestAborted);
+        return TypedResults.Ok(result);
+    }
 }

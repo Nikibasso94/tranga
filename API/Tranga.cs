@@ -115,6 +115,10 @@ public static class Tranga
 
     private static Action RemoveFromKnownWorkers(BaseWorker worker) => () =>
     {
+        // Keep Failed/Cancelled workers visible in KnownWorkers so failures aren't silently
+        // hidden from the API/UI - only successfully Completed workers are removed immediately.
+        if (worker.State is WorkerExecutionState.Failed or WorkerExecutionState.Cancelled)
+            return;
         if (KnownWorkers.Contains(worker))
             KnownWorkers.Remove(worker);
     };
@@ -127,6 +131,18 @@ public static class Tranga
 
     private static readonly HashSet<BaseWorker> KnownWorkers = new();
     public static BaseWorker[] GetKnownWorkers() =>  KnownWorkers.ToArray();
+
+    /// <summary>
+    /// Removes a finished (Failed/Cancelled/Completed) <see cref="BaseWorker"/> from <see cref="KnownWorkers"/>.
+    /// Does nothing for a worker that is still Waiting/Running, since it needs to stay tracked.
+    /// </summary>
+    /// <returns>true if the worker was known and finished, and has been removed</returns>
+    public static bool RemoveKnownWorker(BaseWorker worker)
+    {
+        if (worker.State is WorkerExecutionState.Waiting or WorkerExecutionState.Running or WorkerExecutionState.Created)
+            return false;
+        return KnownWorkers.Remove(worker);
+    }
     private static readonly ConcurrentDictionary<BaseWorker, Task<BaseWorker[]>> RunningWorkers = new();
     public static BaseWorker[] GetRunningWorkers() => RunningWorkers.Keys.ToArray();
     

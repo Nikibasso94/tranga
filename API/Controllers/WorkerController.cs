@@ -78,6 +78,28 @@ public class WorkerController : ControllerBase
         return TypedResults.Ok();
     }
 
+    /// <summary>
+    /// Removes a finished (Failed/Cancelled/Completed) <see cref="BaseWorker"/> with <paramref name="WorkerId"/> from the known-worker list
+    /// </summary>
+    /// <param name="WorkerId"><see cref="BaseWorker"/>.Key</param>
+    /// <response code="200"></response>
+    /// <response code="404"><see cref="BaseWorker"/> with <paramref name="WorkerId"/> could not be found</response>
+    /// <response code="412"><see cref="BaseWorker"/> is still Waiting/Running and can not be removed</response>
+    [HttpDelete("{WorkerId}")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType<string>(Status404NotFound, "text/plain")]
+    [ProducesResponseType(Status412PreconditionFailed)]
+    public Results<Ok, NotFound<string>, StatusCodeHttpResult> RemoveWorker(string WorkerId)
+    {
+        if(Tranga.GetKnownWorkers().FirstOrDefault(w => w.Key == WorkerId) is not { } worker)
+            return TypedResults.NotFound(nameof(WorkerId));
+
+        if(!Tranga.RemoveKnownWorker(worker))
+            return TypedResults.StatusCode(Status412PreconditionFailed);
+
+        return TypedResults.Ok();
+    }
+
     private static Worker ToDto(BaseWorker w) => new(
         w.Key,
         w.AllDependencies.Select(d => d.Key),

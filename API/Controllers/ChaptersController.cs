@@ -252,6 +252,19 @@ public class ChaptersController(MangaContext context) : ControllerBase
         }
 
         chId.UseForDownload = IsRequested;
+
+        // A Chapter should only be downloaded from a single MangaConnector at a time - otherwise the same
+        // Chapter can be queued for download from multiple (possibly broken) sources simultaneously, and the
+        // UI has no consistent single "active" source to display.
+        if (IsRequested)
+        {
+            List<MangaConnectorId<API.Schema.MangaContext.Chapter>> siblingChIds = await context.MangaConnectorToChapter
+                .Where(id => id.ObjId == ChapterId && id.MangaConnectorName != MangaConnectorName)
+                .ToListAsync(HttpContext.RequestAborted);
+            foreach (MangaConnectorId<API.Schema.MangaContext.Chapter> siblingChId in siblingChIds)
+                siblingChId.UseForDownload = false;
+        }
+
         if(await context.Sync(HttpContext.RequestAborted, GetType(), System.Reflection.MethodBase.GetCurrentMethod()?.Name) is { success: false } result)
             return TypedResults.InternalServerError(result.exceptionMessage);
 

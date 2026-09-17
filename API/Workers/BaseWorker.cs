@@ -97,21 +97,42 @@ public abstract class BaseWorker : Identifiable
             DateTime startTime = DateTime.UtcNow;
             State = WorkerExecutionState.Running;
             Task<BaseWorker[]> task = DoWorkInternal();
-            task.GetAwaiter().OnCompleted(Finish(startTime, callback));
+            task.GetAwaiter().OnCompleted(Finish(task, startTime, callback));
             return task;
         }
         catch (Exception e)
-        { 
+        {
             Log.Error(e.ToString());
             return Task.FromException<BaseWorker[]>(e);
         }
     }
 
-    private Action Finish(DateTime startTime, Action? callback = null) => () =>
+    /// <summary>
+    /// Sets the final <see cref="WorkerExecutionState"/> once <see cref="DoWorkInternal"/> has finished.
+    /// Does not overwrite a <see cref="WorkerExecutionState"/>.Failed or .Cancelled state that was already
+    /// set (e.g. via <see cref="Fail"/> or <see cref="Cancel"/>), and marks the worker Failed if the task
+    /// threw an unhandled exception instead of silently reporting it as Completed.
+    /// </summary>
+    private Action Finish(Task<BaseWorker[]> task, DateTime startTime, Action? callback = null) => () =>
     {
         DateTime endTime = DateTime.UtcNow;
-        Log.InfoFormat("Completed {0}\n\t{1} ms", this, endTime.Subtract(startTime).TotalMilliseconds);
-        this.State = WorkerExecutionState.Completed;
+        if (this.State is not (WorkerExecutionState.Failed or WorkerExecutionState.Cancelled))
+        {
+            if (task.IsFaulted)
+            {
+                Log.Error($"{this} threw an unhandled exception:\n\t{task.Exception}");
+                this.State = WorkerExecutionState.Failed;
+            }
+            else
+            {
+                Log.InfoFormat("Completed {0}\n\t{1} ms", this, endTime.Subtract(startTime).TotalMilliseconds);
+                this.State = WorkerExecutionState.Completed;
+            }
+        }
+        else
+        {
+            Log.InfoFormat("Finished {0} with state {1}\n\t{2} ms", this, this.State, endTime.Subtract(startTime).TotalMilliseconds);
+        }
         if(this is IPeriodic periodic)
             periodic.LastExecution = DateTime.UtcNow;
         callback?.Invoke();

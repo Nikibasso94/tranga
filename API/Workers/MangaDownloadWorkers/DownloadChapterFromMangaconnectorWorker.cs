@@ -55,6 +55,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
                 .FirstOrDefaultAsync(c => c.Key == ChapterIdId, CancellationToken) is not { } mangaConnectorId)
         {
             Log.Error("Could not get MangaConnectorId.");
+            this.Fail();
             return [];
         }
         
@@ -68,6 +69,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         if (!Tranga.TryGetMangaConnector(mangaConnectorId.MangaConnectorName, out MangaConnector? mangaConnector))
         {
             Log.Error("Could not get MangaConnector.");
+            this.Fail();
             return [];
         }
         
@@ -77,6 +79,9 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         if (chapter.ParentManga.LibraryId is null)
         {
             Log.Info($"Library is not set for {chapter.ParentManga} {chapter}");
+            this.Fail();
+            if (ProgressReporter is not null)
+                await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
             return [];
         }
         
@@ -89,22 +94,30 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         if (imageUrls.Length < 1)
         {
             Log.Info($"No imageUrls for chapter {chapter}");
+            this.Fail();
+            if (ProgressReporter is not null)
+                await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
             return [];
         }
 
         if (chapter.FullArchiveFilePath is not { } saveArchiveFilePath)
         {
             Log.Error("Failed getting saveArchiveFilePath");
+            this.Fail();
+            if (ProgressReporter is not null)
+                await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
             return [];
         }
         Log.Debug($"Chapter path: {saveArchiveFilePath}");
-        
+
         //Check if Publication Directory already exists
         string? directoryPath = Path.GetDirectoryName(saveArchiveFilePath);
         if (directoryPath is null)
         {
             Log.Error($"Directory path could not be found: {saveArchiveFilePath}");
             this.Fail();
+            if (ProgressReporter is not null)
+                await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
             return [];
         }
         if (!Directory.Exists(directoryPath))
@@ -124,6 +137,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
                 if (await mangaConnector.DownloadImage(imageUrl, CancellationToken) is not { } stream)
                 {
                     Log.Error($"Failed to download image: {imageUrl}");
+                    this.Fail();
                     if (ProgressReporter is not null)
                         await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId,
                             chapter.ParentManga.Name, chapter.ChapterNumber);
@@ -143,6 +157,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
             {
                 Log.Error(ex);
                 images.ForEach(i => i.Dispose());
+                this.Fail();
                 if (ProgressReporter is not null)
                     await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId,
                         chapter.ParentManga.Name, chapter.ChapterNumber);
@@ -166,6 +181,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         if (ProgressReporter is not null)
             await ProgressReporter.ReportPhaseChanged(this, chapter.Key, chapter.ParentMangaId,
                 chapter.ParentManga.Name, chapter.ChapterNumber, DownloadPhase.PackagingArchive);
+        bool archiveCreated = true;
         try
         {
             Log.Debug($"Creating archive: {saveArchiveFilePath}");
@@ -182,7 +198,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
             }
             else
                 Log.Debug("Skipping ComicInfo.xml. CREATE_COMICINFO_XML is set to false");
-            
+
             for (int i = 0; i < images.Count; i++)
             {
                 Log.Debug($"Packaging images to archive {chapter} , image {i}");
@@ -196,10 +212,22 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         catch (Exception ex)
         {
             Log.Error(ex);
+            archiveCreated = false;
         }
         finally
         {
             images.ForEach(i => i.Dispose());
+        }
+
+        if (!archiveCreated)
+        {
+            // Remove the partially-written archive so it isn't left behind as a corrupt/unreadable file
+            if (File.Exists(saveArchiveFilePath))
+                File.Delete(saveArchiveFilePath);
+            this.Fail();
+            if (ProgressReporter is not null)
+                await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
+            return [];
         }
 
         chapter.Downloaded = true;
