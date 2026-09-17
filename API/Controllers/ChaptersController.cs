@@ -258,10 +258,10 @@ public class ChaptersController(MangaContext context) : ControllerBase
         // UI has no consistent single "active" source to display.
         if (IsRequested)
         {
-            List<MangaConnectorId<API.Schema.MangaContext.Chapter>> siblingChIds = await context.MangaConnectorToChapter
+            List<API.Schema.MangaContext.MangaConnectorId<API.Schema.MangaContext.Chapter>> siblingChIds = await context.MangaConnectorToChapter
                 .Where(id => id.ObjId == ChapterId && id.MangaConnectorName != MangaConnectorName)
                 .ToListAsync(HttpContext.RequestAborted);
-            foreach (MangaConnectorId<API.Schema.MangaContext.Chapter> siblingChId in siblingChIds)
+            foreach (API.Schema.MangaContext.MangaConnectorId<API.Schema.MangaContext.Chapter> siblingChId in siblingChIds)
                 siblingChId.UseForDownload = false;
         }
 
