@@ -39,15 +39,18 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
     {
         if (await context.Mangas.Include(m => m.MangaConnectorIds)
                 .OrderBy(m => m.Name)
+                .Select(m => new { Manga = m, Total = m.Chapters.Count(), Downloaded = m.Chapters.Count(c => c.Downloaded) })
                 .ToArrayAsync(HttpContext.RequestAborted) is not
             { } result)
             return TypedResults.InternalServerError();
-        
-        return TypedResults.Ok(result.Select(m =>
-        {
-            IEnumerable<DTOs.MangaConnectorId<Manga>> ids = m.MangaConnectorIds.Select(id => new DTOs.MangaConnectorId<Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
-            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
-        }).ToList());
+
+        return TypedResults.Ok(result.Select(r => ToMinimalManga(r.Manga, r.Total, r.Downloaded)).ToList());
+    }
+
+    private static MinimalManga ToMinimalManga(Schema.MangaContext.Manga m, int totalChapters = 0, int downloadedChapters = 0)
+    {
+        IEnumerable<DTOs.MangaConnectorId<Manga>> ids = m.MangaConnectorIds.Select(id => new DTOs.MangaConnectorId<Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
+        return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids, totalChapters, downloadedChapters);
     }
     
     /// <summary>
@@ -64,14 +67,11 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
                 .Include(m => m.MangaConnectorIds)
                 .Where(m => m.MangaConnectorIds.Any(id => id.UseForDownload))
                 .OrderBy(m => m.Name)
+                .Select(m => new { Manga = m, Total = m.Chapters.Count(), Downloaded = m.Chapters.Count(c => c.Downloaded) })
                 .ToArrayAsync(HttpContext.RequestAborted) is not { } result)
             return TypedResults.InternalServerError();
 
-        return TypedResults.Ok(result.Select(m =>
-        {
-            IEnumerable<DTOs.MangaConnectorId<Manga>> ids = m.MangaConnectorIds.Select(id => new DTOs.MangaConnectorId<Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
-            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
-        }).ToList());
+        return TypedResults.Ok(result.Select(r => ToMinimalManga(r.Manga, r.Total, r.Downloaded)).ToList());
     }
 
     /// <summary>
@@ -360,14 +360,11 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
                 .Include(m => m.MangaTags)
                 .Where(m => m.MangaTags.Any(t => t.Tag == Tag))
                 .OrderBy(m => m.Name)
+                .Select(m => new { Manga = m, Total = m.Chapters.Count(), Downloaded = m.Chapters.Count(c => c.Downloaded) })
                 .ToListAsync(HttpContext.RequestAborted) is not { } result)
             return TypedResults.InternalServerError();
-        
-        return TypedResults.Ok(result.Select(m =>
-        {
-            IEnumerable<DTOs.MangaConnectorId<Manga>> ids = m.MangaConnectorIds.Select(id => new DTOs.MangaConnectorId<Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
-            return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
-        }).ToList());
+
+        return TypedResults.Ok(result.Select(r => ToMinimalManga(r.Manga, r.Total, r.Downloaded)).ToList());
     }
 
     /// <summary>
