@@ -54,10 +54,18 @@ public class Kavita(string baseUrl, string auth) : LibraryConnector(LibraryType.
     {
         Log.Debug("Updating Libraries...");
         List<int> ids = await GetLibraries(ct);
-        JObject requestData = new () { { "ids", JsonConvert.SerializeObject(ids) } };
+
+        // PostAsJsonAsync uses System.Text.Json, which doesn't know how to serialize a Newtonsoft
+        // JObject/JsonConvert output - mixing the two silently produced a malformed body (the "ids"
+        // array ended up double-encoded as a string) that Kavita's scan-multiple endpoint rejected.
+        // Building the request body with Newtonsoft end-to-end avoids that mismatch.
+        string body = JsonConvert.SerializeObject(new { ids });
+        using StringContent content = new(body, System.Text.Encoding.UTF8, "application/json");
 
         await RefreshAuth();
-        await _netClient.PostAsJsonAsync(BuildUri("/api/Library/scan-multiple"), requestData, ct);
+        HttpResponseMessage response = await _netClient.PostAsync(BuildUri("/api/Library/scan-multiple"), content, ct);
+        if (!response.IsSuccessStatusCode)
+            Log.Error($"Failed to trigger Kavita library scan: {(int)response.StatusCode} {response.StatusCode}");
     }
 
     /// <summary>
