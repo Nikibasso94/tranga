@@ -223,43 +223,36 @@ public class ChaptersController(MangaContext context) : ControllerBase
     }
 
     /// <summary>
-    /// (Un-)Marks <see cref="Chapter"/> as requested for Download from <see cref="API.MangaConnectors.MangaConnector"/>
+    /// (Un-)Marks a <see cref="Chapter"/> as requested for Download from the <see cref="DTOs.MangaConnectorId{Chapter}"/> with <paramref name="MangaConnectorIdId"/>
     /// </summary>
-    /// <param name="ChapterId"><see cref="Chapter"/> with <paramref name="ChapterId"/></param>
-    /// <param name="MangaConnectorName"><see cref="API.MangaConnectors.MangaConnector"/> with <paramref name="MangaConnectorName"/></param>
+    /// <param name="MangaConnectorIdId">Key of <see cref="DTOs.MangaConnectorId{Chapter}"/></param>
     /// <param name="IsRequested">true to mark as requested, false to mark as not-requested</param>
     /// <response code="200"></response>
-    /// <response code="404"><paramref name="ChapterId"/> or <paramref name="MangaConnectorName"/> not found</response>
-    /// <response code="428"><see cref="Chapter"/> is not linked to <see cref="API.MangaConnectors.MangaConnector"/> yet. Search for <see cref="Chapter"/> on <see cref="API.MangaConnectors.MangaConnector"/> first (to create a <see cref="DTOs.MangaConnectorId{T}"/>).</response>
+    /// <response code="404"><see cref="DTOs.MangaConnectorId{Chapter}"/> with <paramref name="MangaConnectorIdId"/> not found</response>
     /// <response code="500">Error during Database Operation</response>
-    [HttpPatch("{ChapterId}/DownloadFrom/{MangaConnectorName}/{IsRequested}")]
+    [HttpPatch("ConnectorId/{MangaConnectorIdId}/DownloadFrom/{IsRequested}")]
     [ProducesResponseType(Status200OK)]
     [ProducesResponseType<string>(Status404NotFound,  "text/plain")]
-    [ProducesResponseType<string>(Status428PreconditionRequired,  "text/plain")]
     [ProducesResponseType<string>(Status500InternalServerError,  "text/plain")]
-    public async Task<Results<Ok, NotFound<string>, StatusCodeHttpResult, InternalServerError<string>>> MarkAsRequested(string ChapterId, string MangaConnectorName, bool IsRequested)
+    public async Task<Results<Ok, NotFound<string>, InternalServerError<string>>> MarkAsRequested(string MangaConnectorIdId, bool IsRequested)
     {
-        if (await context.Chapters.FirstOrDefaultAsync(ch => ch.Key == ChapterId, HttpContext.RequestAborted) is not { } _)
-            return TypedResults.NotFound(nameof(ChapterId));
-        if(!Tranga.TryGetMangaConnector(MangaConnectorName, out API.MangaConnectors.MangaConnector? _))
-            return TypedResults.NotFound(nameof(MangaConnectorName));
-
         if (await context.MangaConnectorToChapter
-                .FirstOrDefaultAsync(id => id.MangaConnectorName == MangaConnectorName && id.ObjId == ChapterId, HttpContext.RequestAborted)
+                .FirstOrDefaultAsync(id => id.Key == MangaConnectorIdId, HttpContext.RequestAborted)
             is not { } chId)
         {
-            return TypedResults.StatusCode(Status428PreconditionRequired);
+            return TypedResults.NotFound(nameof(MangaConnectorIdId));
         }
 
         chId.UseForDownload = IsRequested;
 
-        // A Chapter should only be downloaded from a single MangaConnector at a time - otherwise the same
-        // Chapter can be queued for download from multiple (possibly broken) sources simultaneously, and the
-        // UI has no consistent single "active" source to display.
+        // A Chapter should only be downloaded from a single source at a time. A Chapter can have several
+        // MangaConnectorIds pointing at it - either from different Connectors, or duplicate/stale links from
+        // the very same Connector (e.g. Mangaworld re-listing a Chapter under a new URL) - so siblings are
+        // matched by ObjId (the Chapter) alone, not by MangaConnectorName.
         if (IsRequested)
         {
             List<API.Schema.MangaContext.MangaConnectorId<API.Schema.MangaContext.Chapter>> siblingChIds = await context.MangaConnectorToChapter
-                .Where(id => id.ObjId == ChapterId && id.MangaConnectorName != MangaConnectorName)
+                .Where(id => id.ObjId == chId.ObjId && id.Key != chId.Key)
                 .ToListAsync(HttpContext.RequestAborted);
             foreach (API.Schema.MangaContext.MangaConnectorId<API.Schema.MangaContext.Chapter> siblingChId in siblingChIds)
                 siblingChId.UseForDownload = false;
@@ -273,7 +266,7 @@ public class ChaptersController(MangaContext context) : ControllerBase
             DownloadChapterFromMangaconnectorWorker worker = new(chId);
             Tranga.AddWorker(worker);
         }
-        
+
         return TypedResults.Ok();
     }
 }
