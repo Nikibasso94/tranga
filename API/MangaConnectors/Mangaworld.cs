@@ -233,7 +233,12 @@ public sealed class Mangaworld : MangaConnector
                 return list;
             })
             .Select(x => MakeAbsoluteUrl(baseUri, x))
-            .Where(u => u.ToLowerInvariant().StartsWith("http") && (u.EndsWith(".jpg") || u.EndsWith(".jpeg") || u.EndsWith(".png") || u.EndsWith(".webp")));
+            .Where(u => u.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                        && (u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                            || u.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+                            || u.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                            || u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
+                            || u.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)));
 
         return fromDom.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
