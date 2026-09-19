@@ -100,6 +100,20 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
             return [];
         }
 
+        // A real manga Chapter is essentially never 1-2 pages - this many pages almost always means
+        // the Connector's page-scraping missed most of the Chapter (e.g. an image-extension filter
+        // dropping pages), not that the Chapter genuinely only has this many. Failing here instead of
+        // silently downloading a truncated Chapter lets it be retried instead of being marked Downloaded.
+        const int minPlausiblePageCount = 3;
+        if (imageUrls.Length < minPlausiblePageCount)
+        {
+            Log.Warn($"Only {imageUrls.Length} imageUrls found for chapter {chapter} - suspiciously low, likely an incomplete scrape.");
+            this.Fail();
+            if (ProgressReporter is not null)
+                await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
+            return [];
+        }
+
         if (chapter.FullArchiveFilePath is not { } saveArchiveFilePath)
         {
             Log.Error("Failed getting saveArchiveFilePath");
