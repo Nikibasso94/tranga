@@ -104,8 +104,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         // the Connector's page-scraping missed most of the Chapter (e.g. an image-extension filter
         // dropping pages), not that the Chapter genuinely only has this many. Failing here instead of
         // silently downloading a truncated Chapter lets it be retried instead of being marked Downloaded.
-        const int minPlausiblePageCount = 3;
-        if (imageUrls.Length < minPlausiblePageCount)
+        if (imageUrls.Length < Constants.MinPlausibleChapterPageCount)
         {
             Log.Warn($"Only {imageUrls.Length} imageUrls found for chapter {chapter} - suspiciously low, likely an incomplete scrape.");
             this.Fail();

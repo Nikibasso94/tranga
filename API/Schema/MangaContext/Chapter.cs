@@ -1,8 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using log4net;
 using Microsoft.EntityFrameworkCore;
 using Soenneker.Utils.String.NeedlemanWunsch;
 
@@ -11,6 +13,8 @@ namespace API.Schema.MangaContext;
 [PrimaryKey("Key")]
 public class Chapter : Identifiable, IComparable<Chapter>
 {
+    private static readonly ILog Log = LogManager.GetLogger(typeof(Chapter));
+
     [StringLength(64)] public string ParentMangaId { get; init; } = null!;
     public Manga ParentManga = null!;
 
@@ -99,8 +103,18 @@ public class Chapter : Identifiable, IComparable<Chapter>
         
         if (File.Exists(chapter.FullArchiveFilePath))
         {
-            this.Downloaded = true;
-            this.FileName = new FileInfo(chapter.FullArchiveFilePath).Name;
+            if (IsArchiveValid(chapter.FullArchiveFilePath))
+            {
+                this.Downloaded = true;
+                this.FileName = new FileInfo(chapter.FullArchiveFilePath).Name;
+            }
+            else
+            {
+                Log.Warn($"Archive at {chapter.FullArchiveFilePath} looks incomplete/corrupt - deleting so it can be re-downloaded.");
+                File.Delete(chapter.FullArchiveFilePath);
+                this.Downloaded = false;
+                this.FileName = null;
+            }
         }else if (Constants.DownloadedChaptersCheckMatchExactName)
         {
             this.Downloaded = false;
@@ -125,14 +139,48 @@ public class Chapter : Identifiable, IComparable<Chapter>
                     return false;
                 return chMatch.Groups[1].Value == this.ChapterNumber;
             });
-            this.Downloaded = existingFile is not null;
-            this.FileName = existingFile is not null ? new FileInfo(existingFile).Name : null;
+            if (existingFile is not null && IsArchiveValid(Path.Join(directoryPath, existingFile)))
+            {
+                this.Downloaded = true;
+                this.FileName = existingFile;
+            }
+            else
+            {
+                if (existingFile is not null)
+                {
+                    Log.Warn($"Archive at {Path.Join(directoryPath, existingFile)} looks incomplete/corrupt - deleting so it can be re-downloaded.");
+                    File.Delete(Path.Join(directoryPath, existingFile));
+                }
+                this.Downloaded = false;
+                this.FileName = null;
+            }
         }
-        
+
         await context.Sync(token??CancellationToken.None, GetType(), $"CheckDownloaded {this} {this.Downloaded}");
         return this.Downloaded;
-    } 
-    
+    }
+
+    /// <summary>
+    /// Opens the Chapter archive and checks that it contains a plausible number of image pages, to
+    /// catch archives left behind incomplete/truncated (e.g. by a Connector bug, or a crash/disk-full
+    /// mid-download) that would otherwise look "Downloaded" simply because the file exists.
+    /// </summary>
+    private static bool IsArchiveValid(string path)
+    {
+        try
+        {
+            using ZipArchive archive = ZipFile.OpenRead(path);
+            int imageCount = archive.Entries.Count(e =>
+                Path.GetExtension(e.Name).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif");
+            return imageCount >= Constants.MinPlausibleChapterPageCount;
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"Archive at {path} could not be opened ({e.Message}) - treating as invalid/corrupt.");
+            return false;
+        }
+    }
+
     /// Placeholders:
     /// %M Obj Name
     /// %V Volume

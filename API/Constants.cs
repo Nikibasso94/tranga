@@ -20,6 +20,13 @@ public struct Constants
     
     public static readonly bool CreateComicInfoXml = bool.Parse(Environment.GetEnvironmentVariable("CREATE_COMICINFO_XML") ?? "true");
     public static readonly bool ZeroVolumeInFilenameIfNull = bool.Parse(Environment.GetEnvironmentVariable("ALWAYS_INCLUDE_VOLUME_IN_FILENAME") ?? "false");
+
+    /// <summary>
+    /// A real Chapter archive with fewer image pages than this is treated as an incomplete/corrupt
+    /// download (see DownloadChapterFromMangaconnectorWorker and Chapter.CheckDownloaded) rather than
+    /// a genuinely short Chapter.
+    /// </summary>
+    public const int MinPlausibleChapterPageCount = 3;
     
     public static readonly int HttpRequestTimeout =  int.Parse(Environment.GetEnvironmentVariable("HTTP_REQUEST_TIMEOUT") ?? "60");
     public static readonly int RequestsPerMinute =  int.Parse(Environment.GetEnvironmentVariable("REQUESTS_PER_MINUTE") ?? "90");
