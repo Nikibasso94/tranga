@@ -102,6 +102,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
     /// Delete <see cref="Manga"/> with <paramref name="MangaId"/>
     /// </summary>
     /// <param name="MangaId"><see cref="Manga"/>.Key</param>
+    /// <param name="deleteFiles">Whether to also delete the Manga's downloaded chapters from disk (default true). Set to false to only stop tracking it, keeping the files.</param>
     /// <response code="200"></response>
     /// <response code="404"><see cref="Manga"/> with <paramref name="MangaId"/> not found</response>
     /// <response code="500">Error during Database Operation</response>
@@ -109,12 +110,12 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
     [ProducesResponseType(Status200OK)]
     [ProducesResponseType<string>(Status404NotFound, "text/plain")]
     [ProducesResponseType<string>(Status500InternalServerError, "text/plain")]
-    public async Task<Results<Ok, NotFound<string>, InternalServerError<string>>> DeleteManga (string MangaId)
+    public async Task<Results<Ok, NotFound<string>, InternalServerError<string>>> DeleteManga (string MangaId, [FromQuery] bool deleteFiles = true)
     {
         if(await context.Mangas.Include(m => m.Library).FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
             return TypedResults.NotFound(nameof(MangaId));
 
-        if (manga.Library is not null)
+        if (deleteFiles && manga.Library is not null)
         {
             string publicationFolder = System.IO.Path.Join(manga.Library.BasePath, manga.DirectoryName);
             if (System.IO.Directory.Exists(publicationFolder))
