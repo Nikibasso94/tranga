@@ -269,4 +269,44 @@ public class ChaptersController(MangaContext context) : ControllerBase
 
         return TypedResults.Ok();
     }
+
+    /// <summary>
+    /// Deletes the existing archive (if any) for <see cref="Chapter"/> with <paramref name="ChapterId"/>, marks it
+    /// not-downloaded, and immediately queues a fresh download from its currently active source.
+    /// </summary>
+    /// <param name="ChapterId"><see cref="Chapter"/> with <paramref name="ChapterId"/></param>
+    /// <response code="200"></response>
+    /// <response code="404"><paramref name="ChapterId"/> not found</response>
+    /// <response code="428"><see cref="Chapter"/> has no source currently set to download from</response>
+    /// <response code="500">Error during Database Operation</response>
+    [HttpPost("{ChapterId}/ForceRedownload")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType<string>(Status404NotFound,  "text/plain")]
+    [ProducesResponseType<string>(Status428PreconditionRequired,  "text/plain")]
+    [ProducesResponseType<string>(Status500InternalServerError,  "text/plain")]
+    public async Task<Results<Ok, NotFound<string>, StatusCodeHttpResult, InternalServerError<string>>> ForceRedownload(string ChapterId)
+    {
+        if (await context.Chapters.FirstOrDefaultAsync(c => c.Key == ChapterId, HttpContext.RequestAborted) is not { } chapter)
+            return TypedResults.NotFound(nameof(ChapterId));
+
+        if (await context.MangaConnectorToChapter
+                .FirstOrDefaultAsync(id => id.ObjId == ChapterId && id.UseForDownload, HttpContext.RequestAborted)
+            is not { } chId)
+        {
+            return TypedResults.StatusCode(Status428PreconditionRequired);
+        }
+
+        if (chapter.FullArchiveFilePath is { } existingPath && System.IO.File.Exists(existingPath))
+            System.IO.File.Delete(existingPath);
+
+        chapter.Downloaded = false;
+        chapter.FileName = null;
+        if(await context.Sync(HttpContext.RequestAborted, GetType(), System.Reflection.MethodBase.GetCurrentMethod()?.Name) is { success: false } result)
+            return TypedResults.InternalServerError(result.exceptionMessage);
+
+        DownloadChapterFromMangaconnectorWorker worker = new(chId);
+        Tranga.AddWorker(worker);
+
+        return TypedResults.Ok();
+    }
 }
