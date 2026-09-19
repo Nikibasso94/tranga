@@ -102,12 +102,13 @@ public static class Tranga
 
     private static Action RefreshTask(BaseWorker worker, IPeriodic periodic) => () =>
     {
+        // A periodic worker must keep running on its schedule even after a failed run (e.g. a
+        // transient DB/network hiccup) - stopping here used to permanently kill the periodic task
+        // (no more chapter checks/downloads) until the whole app was restarted.
         if (worker.State < WorkerExecutionState.Created) //Failed
-        {
-            Log.DebugFormat("Task {0} failed. Not refreshing.", worker);
-            return;
-        } 
-        Log.DebugFormat("Refreshing {0}", worker);
+            Log.WarnFormat("Task {0} failed - retrying on next scheduled interval.", worker);
+        else
+            Log.DebugFormat("Refreshing {0}", worker);
         Task periodicTask = RefreshedPeriodicTask(worker, periodic);
         PeriodicWorkers.AddOrUpdate((worker as IPeriodic)!, periodicTask, (_, _) => periodicTask);
         periodicTask.Start();
