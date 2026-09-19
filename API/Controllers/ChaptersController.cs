@@ -172,18 +172,31 @@ public class ChaptersController(MangaContext context) : ControllerBase
     }
     
     /// <summary>
-    /// Deletes <see cref="Chapter"/> with <paramref name="ChapterId"/>
+    /// Deletes <see cref="Chapter"/> with <paramref name="ChapterId"/>, including its archive on disk
     /// </summary>
     /// <param name="ChapterId"><see cref="Chapter"/>.Key</param>
     /// <response code="200"></response>
     /// <response code="404"><see cref="Chapter"/> with <paramref name="ChapterId"/> not found</response>
+    /// <response code="500">Error during Database Operation</response>
     [HttpDelete("{ChapterId}")]
     [ProducesResponseType(Status200OK)]
     [ProducesResponseType<string>(Status404NotFound, "text/plain")]
-    public async Task<Results<Ok, NotFound<string>>> DeleteChapter (string ChapterId)
+    [ProducesResponseType<string>(Status500InternalServerError, "text/plain")]
+    public async Task<Results<Ok, NotFound<string>, InternalServerError<string>>> DeleteChapter (string ChapterId)
     {
-        if (await context.Chapters.Where(c => c.Key == ChapterId).ExecuteDeleteAsync(HttpContext.RequestAborted) < 1)
+        if (await context.Chapters
+                .Include(c => c.ParentManga)
+                .ThenInclude(m => m.Library)
+                .FirstOrDefaultAsync(c => c.Key == ChapterId, HttpContext.RequestAborted) is not { } chapter)
             return TypedResults.NotFound(nameof(ChapterId));
+
+        if (chapter.FullArchiveFilePath is { } path && System.IO.File.Exists(path))
+            System.IO.File.Delete(path);
+
+        context.Remove(chapter);
+        if(await context.Sync(HttpContext.RequestAborted, GetType(), System.Reflection.MethodBase.GetCurrentMethod()?.Name) is { success: false } result)
+            return TypedResults.InternalServerError(result.exceptionMessage);
+
         return TypedResults.Ok();
     }
 

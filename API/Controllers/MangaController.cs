@@ -111,10 +111,18 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
     [ProducesResponseType<string>(Status500InternalServerError, "text/plain")]
     public async Task<Results<Ok, NotFound<string>, InternalServerError<string>>> DeleteManga (string MangaId)
     {
-        if(await context.Mangas.FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
+        if(await context.Mangas.Include(m => m.Library).FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
             return TypedResults.NotFound(nameof(MangaId));
+
+        if (manga.Library is not null)
+        {
+            string publicationFolder = System.IO.Path.Join(manga.Library.BasePath, manga.DirectoryName);
+            if (System.IO.Directory.Exists(publicationFolder))
+                System.IO.Directory.Delete(publicationFolder, recursive: true);
+        }
+
         context.Remove(manga);
-        
+
         if(await context.Sync(HttpContext.RequestAborted, GetType(), System.Reflection.MethodBase.GetCurrentMethod()?.Name) is { success: false } result)
             return TypedResults.InternalServerError(result.exceptionMessage);
         return TypedResults.Ok();
