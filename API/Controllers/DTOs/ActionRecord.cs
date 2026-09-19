@@ -43,7 +43,19 @@ public sealed record ActionRecord : Identifiable
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ChapterId { get; init; }
-    
+
+    /// <summary>
+    /// Name of the Manga with <see cref="MangaId"/>, if it could still be resolved
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MangaName { get; init; }
+
+    /// <summary>
+    /// ChapterNumber of the Chapter with <see cref="ChapterId"/>, if it could still be resolved
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ChapterNumber { get; init; }
+
     /// <summary>
     /// FromPath if Record is <see cref="Schema.ActionsContext.Actions.DataMovedActionRecord"/>
     /// </summary>

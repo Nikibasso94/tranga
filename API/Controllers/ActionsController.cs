@@ -2,6 +2,8 @@ using API.Controllers.DTOs;
 using API.Controllers.Requests;
 using API.Schema.ActionsContext;
 using API.Schema.ActionsContext.Actions;
+using API.Schema.ActionsContext.Actions.Generic;
+using API.Schema.MangaContext;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +16,7 @@ namespace API.Controllers;
 [ApiVersion(2)]
 [ApiController]
 [Route("v{v:apiVersion}/[controller]")]
-public class ActionsController(ActionsContext context) : ControllerBase
+public class ActionsController(ActionsContext context, MangaContext mangaContext) : ControllerBase
 {
     /// <summary>
     /// Returns the available Action Types (<see cref="Actions"/>)
@@ -51,7 +53,25 @@ public class ActionsController(ActionsContext context) : ControllerBase
                 .CreatePagedResponse(a => a.PerformedAt, page, pageSize, HttpContext.RequestAborted)
             is not { } result)
             return TypedResults.InternalServerError();
-        
-        return TypedResults.Ok(result.ToType(a => new ActionRecord(a)));
+
+        // The Manga/Chapter name isn't stored in the Action itself (a different DbContext) - resolve the
+        // names for just this page's worth of ids in two batched lookups instead of one query per row.
+        List<string> mangaIds = result.Data.Select(GetMangaId).Where(id => id is not null).Select(id => id!).Distinct().ToList();
+        List<string> chapterIds = result.Data.Select(GetChapterId).Where(id => id is not null).Select(id => id!).Distinct().ToList();
+        Dictionary<string, string> mangaNames = await mangaContext.Mangas
+            .Where(m => mangaIds.Contains(m.Key))
+            .ToDictionaryAsync(m => m.Key, m => m.Name, HttpContext.RequestAborted);
+        Dictionary<string, string> chapterNumbers = await mangaContext.Chapters
+            .Where(c => chapterIds.Contains(c.Key))
+            .ToDictionaryAsync(c => c.Key, c => c.ChapterNumber, HttpContext.RequestAborted);
+
+        return TypedResults.Ok(result.ToType(a => new ActionRecord(a)
+        {
+            MangaName = GetMangaId(a) is { } mangaId && mangaNames.TryGetValue(mangaId, out string? mangaName) ? mangaName : null,
+            ChapterNumber = GetChapterId(a) is { } chapterId && chapterNumbers.TryGetValue(chapterId, out string? chapterNumber) ? chapterNumber : null
+        }));
     }
+
+    private static string? GetMangaId(Schema.ActionsContext.ActionRecord a) => a is IActionWithMangaRecord m ? m.MangaId : null;
+    private static string? GetChapterId(Schema.ActionsContext.ActionRecord a) => a is IActionWithChapterRecord c ? c.ChapterId : null;
 }
