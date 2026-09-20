@@ -76,7 +76,7 @@ public static class Tranga
     public static void AddWorker(BaseWorker worker)
     {
         Log.DebugFormat("Adding Worker {0}", worker);
-        KnownWorkers.Add(worker);
+        KnownWorkers.TryAdd(worker, 0);
         if(worker is not IPeriodic)
             StartWorker(worker, RemoveFromKnownWorkers(worker));
         else
@@ -120,8 +120,7 @@ public static class Tranga
         // hidden from the API/UI - only successfully Completed workers are removed immediately.
         if (worker.State is WorkerExecutionState.Failed or WorkerExecutionState.Cancelled)
             return;
-        if (KnownWorkers.Contains(worker))
-            KnownWorkers.Remove(worker);
+        KnownWorkers.TryRemove(worker, out _);
     };
     
     public static void AddWorkers(IEnumerable<BaseWorker> workers)
@@ -130,8 +129,10 @@ public static class Tranga
             AddWorker(baseWorker);
     }
 
-    private static readonly HashSet<BaseWorker> KnownWorkers = new();
-    public static BaseWorker[] GetKnownWorkers() =>  KnownWorkers.ToArray();
+    // A ConcurrentDictionary used as a set (value is unused) - workers can now be added/removed while
+    // the API is already serving requests (see Program.cs), so a plain HashSet is not safe here.
+    private static readonly ConcurrentDictionary<BaseWorker, byte> KnownWorkers = new();
+    public static BaseWorker[] GetKnownWorkers() =>  KnownWorkers.Keys.ToArray();
 
     /// <summary>
     /// Removes a finished (Failed/Cancelled/Completed) <see cref="BaseWorker"/> from <see cref="KnownWorkers"/>.
@@ -142,7 +143,7 @@ public static class Tranga
     {
         if (worker.State is WorkerExecutionState.Waiting or WorkerExecutionState.Running or WorkerExecutionState.Created)
             return false;
-        return KnownWorkers.Remove(worker);
+        return KnownWorkers.TryRemove(worker, out _);
     }
     private static readonly ConcurrentDictionary<BaseWorker, Task<BaseWorker[]>> RunningWorkers = new();
     public static BaseWorker[] GetRunningWorkers() => RunningWorkers.Keys.ToArray();

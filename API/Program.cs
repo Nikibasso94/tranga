@@ -230,8 +230,16 @@ catch (Exception e)
 
 log.Info("Starting Tranga.");
 Tranga.ServiceProvider = app.Services;
-Tranga.StartupTasks();
-Tranga.AddDefaultWorkers();
+
+// StartupTasks() blocks (synchronously) until maintenance workers finish - on a large library this can
+// take a while, and it used to run before RunAsync(), so Kestrel wouldn't even accept a connection until
+// it was done. Running it on a background thread instead lets the API (and the Worker endpoints) come up
+// immediately, so startup progress can be watched from the web UI rather than the whole site looking down.
+_ = Task.Run(() =>
+{
+    Tranga.StartupTasks();
+    Tranga.AddDefaultWorkers();
+});
 
 log.Info("Running app.");
 await app.RunAsync();
