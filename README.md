@@ -29,6 +29,36 @@
 
 </div>
 
+<!-- FORK CHANGES -->
+## Changes in this fork
+
+This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](https://github.com/C9Glax/tranga), with the following fixes and additions on top of upstream:
+
+**Reliability**
+- Periodic workers (chapter checks, downloads) no longer permanently stop after a single failed run (e.g. a transient DB hiccup) - they now keep retrying on schedule instead of requiring a full restart
+- Download failures are no longer silently reported as successful; failed jobs stay visible instead of disappearing
+- The API now starts serving requests immediately instead of blocking (potentially for minutes, on large libraries) until startup maintenance checks finish
+- Fixed a `NullReferenceException` when recording a downloaded cover
+- Fixed an ambiguous `MangaConnectorId<T>` reference and an EF Core query translation failure in a couple of controllers
+
+**Mangaworld connector**
+- Fixed pages being dropped when served as `.gif` (was silently producing truncated or completely failed chapters)
+- Chapter downloads now fail instead of succeeding when the scraped page count is implausibly low (e.g. 1-2 pages), so they get retried instead of leaving a corrupt archive
+- The periodic downloaded-chapter check now opens and validates each archive's contents, not just checks the file exists - a truncated/corrupt archive gets deleted and re-queued automatically
+- Chapter links are refreshed on every re-scan instead of only when brand new - fixes both duplicate/dead links from the same connector, and old undownloaded chapters getting stuck on a URL from before the site changed domains
+- Fixed the chapter download-source toggle acting on the wrong row when a chapter has two links from the same connector
+
+**New features**
+- Per-Manga chapter download progress (`/v2/Manga` now returns total/downloaded chapter counts)
+- "Force (re)download" for a Chapter - deletes the existing archive and re-downloads it now
+- Deleting a Manga or Chapter now also deletes its downloaded files on disk (previously only the database record was removed, leaving orphaned files); Manga deletion supports keeping the files (`deleteFiles=false`) to just stop tracking it
+- The Actions (audit log) endpoint now includes the Manga name and Chapter number instead of only their ids
+
+**Infrastructure**
+- Docker images are published to `ghcr.io/nikibasso94/tranga-api` instead of the upstream Docker Hub namespace
+- Added a missing `.dockerignore` - the build context was including the entire downloaded `Manga/` folder in every image build
+- Fixed a malformed request body that broke triggering a Kavita library scan
+
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
