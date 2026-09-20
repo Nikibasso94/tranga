@@ -101,7 +101,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
             return [];
         }
 
-        // A real manga Chapter is essentially never 1-2 pages - this many pages almost always means
+        // A real manga Chapter is essentially never a single page - that few almost always means
         // the Connector's page-scraping missed most of the Chapter (e.g. an image-extension filter
         // dropping pages), not that the Chapter genuinely only has this many. Failing here instead of
         // silently downloading a truncated Chapter lets it be retried instead of being marked Downloaded.

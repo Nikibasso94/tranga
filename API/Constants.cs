@@ -24,9 +24,10 @@ public struct Constants
     /// <summary>
     /// A real Chapter archive with fewer image pages than this is treated as an incomplete/corrupt
     /// download (see DownloadChapterFromMangaconnectorWorker and Chapter.CheckDownloaded) rather than
-    /// a genuinely short Chapter.
+    /// a genuinely short Chapter. 2-page Chapters do legitimately occur (e.g. short bonus/extra
+    /// chapters), so only a lone page is treated as suspicious.
     /// </summary>
-    public const int MinPlausibleChapterPageCount = 3;
+    public const int MinPlausibleChapterPageCount = 2;
     
     public static readonly int HttpRequestTimeout =  int.Parse(Environment.GetEnvironmentVariable("HTTP_REQUEST_TIMEOUT") ?? "60");
     public static readonly int RequestsPerMinute =  int.Parse(Environment.GetEnvironmentVariable("REQUESTS_PER_MINUTE") ?? "90");
