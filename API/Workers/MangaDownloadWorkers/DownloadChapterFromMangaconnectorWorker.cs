@@ -94,6 +94,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         if (imageUrls.Length < 1)
         {
             Log.Info($"No imageUrls for chapter {chapter}");
+            await TrySwitchToSiblingSource(mangaConnectorId);
             this.Fail();
             if (ProgressReporter is not null)
                 await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
@@ -107,6 +108,7 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         if (imageUrls.Length < Constants.MinPlausibleChapterPageCount)
         {
             Log.Warn($"Only {imageUrls.Length} imageUrls found for chapter {chapter} - suspiciously low, likely an incomplete scrape.");
+            await TrySwitchToSiblingSource(mangaConnectorId);
             this.Fail();
             if (ProgressReporter is not null)
                 await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
@@ -270,6 +272,27 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
             Log.Info($"Condition {Tranga.Settings.LibraryRefreshSetting} met.");
 
         return refreshLibrary? [new RefreshLibrariesWorker()] : [];
+    }
+
+    /// <summary>
+    /// If the Chapter has another MangaConnectorId (a duplicate link from the same or a different
+    /// Connector, e.g. a dead link the site re-issued under a new URL - see
+    /// RetrieveMangaChaptersFromMangaconnectorWorker), switches UseForDownload to it so the next
+    /// scheduled attempt retries via that source instead of the one that just failed. Otherwise a
+    /// permanently dead link would be retried forever while a working duplicate sits unused.
+    /// </summary>
+    private async Task TrySwitchToSiblingSource(MangaConnectorId<Chapter> failedId)
+    {
+        if (await MangaContext.MangaConnectorToChapter
+                .FirstOrDefaultAsync(id => id.ObjId == failedId.ObjId && id.Key != failedId.Key, CancellationToken)
+            is not { } sibling)
+            return;
+
+        Log.Info($"{failedId} failed - switching to alternate source {sibling} for the next attempt.");
+        failedId.UseForDownload = false;
+        sibling.UseForDownload = true;
+        if(await MangaContext.Sync(CancellationToken, GetType(), "Switched to alternate source") is { success: false } result)
+            Log.Error($"Failed to save database changes: {result.exceptionMessage}");
     }
 
     private async Task<bool> CheckLibraryRefresh() => Tranga.Settings.LibraryRefreshSetting switch
