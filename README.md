@@ -40,6 +40,7 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - The API now starts serving requests immediately instead of blocking (potentially for minutes, on large libraries) until startup maintenance checks finish
 - Fixed a `NullReferenceException` when recording a downloaded cover
 - Fixed an ambiguous `MangaConnectorId<T>` reference and an EF Core query translation failure in a couple of controllers
+- Fixed every `Settings` PATCH endpoint (UserAgent, naming scheme, image compression, ...) only persisting to `settings.json` without ever taking effect on the running process, and clobbering each other's changes on disk if called back-to-back - caused by a mutable settings struct stored in a `readonly` field
 
 **Mangaworld connector**
 - Fixed pages being dropped when served as `.gif` (was silently producing truncated or completely failed chapters)
@@ -54,6 +55,7 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - "Force (re)download" for a Chapter - deletes the existing archive and re-downloads it now
 - Deleting a Manga or Chapter now also deletes its downloaded files on disk (previously only the database record was removed, leaving orphaned files); Manga deletion supports keeping the files (`deleteFiles=false`) to just stop tracking it
 - The Actions (audit log) endpoint now includes the Manga name and Chapter number instead of only their ids
+- `MaxConcurrentDownloads` and `MaxConcurrentWorkers` can now be changed at runtime via the API (`PATCH /v2/Settings/MaxConcurrentDownloads/{value}` and `.../MaxConcurrentWorkers/{value}`), instead of only by editing `settings.json` and restarting
 
 **Infrastructure**
 - Docker images are published to `ghcr.io/nikibasso94/tranga-api` instead of the upstream Docker Hub namespace
