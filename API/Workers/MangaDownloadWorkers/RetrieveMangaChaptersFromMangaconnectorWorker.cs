@@ -75,7 +75,22 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
         foreach (MangaConnectorId<Chapter> newId in newIds)
             newId.Obj = manga.Chapters.First(ch => ch.Key == newId.ObjId);
         Log.DebugFormat("Got {0} new download-Ids.", newIds.Count);
-        
+
+        // Refresh stale WebsiteUrls. IdOnConnectorSite is path-only for some Connectors (e.g. Mangaworld),
+        // so a domain migration on the source site (mangaworld.cx -> mangaworld.mx, etc.) keeps the same
+        // id - it's never treated as a "new" ChapterId above, so the stored WebsiteUrl would otherwise
+        // keep pointing at the old, now-dead domain forever.
+        Dictionary<(string MangaConnectorName, string IdOnConnectorSite), string?> freshUrls = allChapters
+            .Select(ch => ch.chapterId)
+            .GroupBy(id => (id.MangaConnectorName, id.IdOnConnectorSite))
+            .ToDictionary(g => g.Key, g => g.First().WebsiteUrl);
+        foreach (MangaConnectorId<Chapter> existing in existingChapterIds)
+        {
+            if (freshUrls.TryGetValue((existing.MangaConnectorName, existing.IdOnConnectorSite), out string? freshUrl)
+                && freshUrl is not null && freshUrl != existing.WebsiteUrl)
+                existing.WebsiteUrl = freshUrl;
+        }
+
         // Add new ChapterIds to Database
         MangaContext.MangaConnectorToChapter.AddRange(newIds);
 

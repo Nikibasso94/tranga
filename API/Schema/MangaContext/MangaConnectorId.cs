@@ -13,7 +13,7 @@ public class MangaConnectorId<T> : Identifiable where T : Identifiable
     [StringLength(32)] public string MangaConnectorName { get; private set; }
 
     [StringLength(256)] public string IdOnConnectorSite { get; init; }
-    [Url] [StringLength(512)] public string? WebsiteUrl { get; internal init; }
+    [Url] [StringLength(512)] public string? WebsiteUrl { get; internal set; }
     public bool UseForDownload { get; internal set; }
 
     public MangaConnectorId(T obj, string mangaConnectorName, string idOnConnectorSite, string? websiteUrl,
