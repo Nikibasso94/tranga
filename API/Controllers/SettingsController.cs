@@ -230,6 +230,62 @@ public class SettingsController() : ControllerBase
     
 
     /// <summary>
+    /// Returns the maximum amount of Chapters downloaded at the same time
+    /// </summary>
+    /// <response code="200"></response>
+    [HttpGet("MaxConcurrentDownloads")]
+    [ProducesResponseType<int>(Status200OK, "text/plain")]
+    public Ok<int> GetMaxConcurrentDownloads()
+    {
+        return TypedResults.Ok(Tranga.Settings.MaxConcurrentDownloads);
+    }
+
+    /// <summary>
+    /// Sets the maximum amount of Chapters downloaded at the same time
+    /// </summary>
+    /// <param name="value">Minimum of 1</param>
+    /// <response code="200"></response>
+    /// <response code="400">Value outside permitted range</response>
+    [HttpPatch("MaxConcurrentDownloads/{value}")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType(Status400BadRequest)]
+    public Results<Ok, BadRequest> SetMaxConcurrentDownloads(int value)
+    {
+        if (value < 1)
+            return TypedResults.BadRequest();
+        Tranga.Settings.SetMaxConcurrentDownloads(value);
+        return TypedResults.Ok();
+    }
+
+    /// <summary>
+    /// Returns the maximum amount of Workers (Jobs) running at the same time
+    /// </summary>
+    /// <response code="200"></response>
+    [HttpGet("MaxConcurrentWorkers")]
+    [ProducesResponseType<int>(Status200OK, "text/plain")]
+    public Ok<int> GetMaxConcurrentWorkers()
+    {
+        return TypedResults.Ok(Tranga.Settings.MaxConcurrentWorkers);
+    }
+
+    /// <summary>
+    /// Sets the maximum amount of Workers (Jobs) running at the same time
+    /// </summary>
+    /// <param name="value">Minimum of 1</param>
+    /// <response code="200"></response>
+    /// <response code="400">Value outside permitted range</response>
+    [HttpPatch("MaxConcurrentWorkers/{value}")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType(Status400BadRequest)]
+    public Results<Ok, BadRequest> SetMaxConcurrentWorkers(int value)
+    {
+        if (value < 1)
+            return TypedResults.BadRequest();
+        Tranga.Settings.SetMaxConcurrentWorkers(value);
+        return TypedResults.Ok();
+    }
+
+    /// <summary>
     /// Sets the time when Libraries are refreshed
     /// </summary>
     /// <response code="200"></response>

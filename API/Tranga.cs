@@ -21,7 +21,10 @@ public static class Tranga
     private static readonly ILog Log = LogManager.GetLogger(typeof(Tranga));
     internal static readonly MetadataFetcher[] MetadataFetchers = [new MyAnimeList()];
     internal static readonly MangaConnector[] MangaConnectors = [new Global(), new AsuraComic(), new MangaDex(), new Mangaworld(), new WeebCentral()];
-    internal static readonly TrangaSettings Settings = TrangaSettings.Load();
+    // Not readonly: TrangaSettings is a mutable struct, and its Set* methods mutate `this` in
+    // place. A readonly field would make the compiler call those methods on a defensive copy,
+    // so the change would be silently lost from the live process (only written to disk).
+    internal static TrangaSettings Settings = TrangaSettings.Load();
     
     // ReSharper disable MemberCanBePrivate.Global
     internal static readonly UpdateMetadataWorker UpdateMetadataWorker = new ();
