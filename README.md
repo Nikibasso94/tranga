@@ -43,10 +43,11 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 
 **Mangaworld connector**
 - Fixed pages being dropped when served as `.gif` (was silently producing truncated or completely failed chapters)
-- Chapter downloads now fail instead of succeeding when the scraped page count is implausibly low (e.g. 1-2 pages), so they get retried instead of leaving a corrupt archive
+- Chapter downloads now fail instead of succeeding when the scraped page count is implausibly low (a single page), so they get retried instead of leaving a corrupt archive
 - The periodic downloaded-chapter check now opens and validates each archive's contents, not just checks the file exists - a truncated/corrupt archive gets deleted and re-queued automatically
 - Chapter links are refreshed on every re-scan instead of only when brand new - fixes both duplicate/dead links from the same connector, and old undownloaded chapters getting stuck on a URL from before the site changed domains
 - Fixed the chapter download-source toggle acting on the wrong row when a chapter has two links from the same connector
+- When a chapter download fails (dead/404 link, or implausibly few pages) and another link exists for the same chapter, it's now tried automatically on the next attempt instead of retrying the same dead link forever
 
 **New features**
 - Per-Manga chapter download progress (`/v2/Manga` now returns total/downloaded chapter counts)
