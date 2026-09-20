@@ -79,12 +79,25 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
         // Add new ChapterIds to Database
         MangaContext.MangaConnectorToChapter.AddRange(newIds);
 
-        // If Manga is marked for Download from Connector, mark the new Chapters as UseForDownload
+        // If Manga is marked for Download from Connector, mark newly-discovered ChapterIds as UseForDownload.
+        // This covers brand-new Chapters, but also existing, not-yet-downloaded Chapters that got a fresh
+        // IdOnConnectorSite (e.g. a dead link the site re-issued under a new URL) - otherwise the stale
+        // dead link (still UseForDownload) keeps being retried forever while the working one sits unused.
+        // Already-downloaded Chapters are left alone; the sibling swap mirrors ChaptersController.MarkAsRequested.
         if (mangaConnectorId.UseForDownload)
         {
-            foreach ((Chapter _, MangaConnectorId<Chapter> chapterId) in newChapters)
+            Dictionary<string, List<MangaConnectorId<Chapter>>> idsByChapter = existingChapterIds.Concat(newIds)
+                .GroupBy(id => id.ObjId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (MangaConnectorId<Chapter> newId in newIds)
             {
-                chapterId.UseForDownload = mangaConnectorId.UseForDownload;
+                if (newId.Obj.Downloaded)
+                    continue;
+
+                newId.UseForDownload = true;
+                foreach (MangaConnectorId<Chapter> sibling in idsByChapter[newId.ObjId].Where(id => id.Key != newId.Key))
+                    sibling.UseForDownload = false;
             }
         }
 
