@@ -22,12 +22,11 @@ public struct Constants
     public static readonly bool ZeroVolumeInFilenameIfNull = bool.Parse(Environment.GetEnvironmentVariable("ALWAYS_INCLUDE_VOLUME_IN_FILENAME") ?? "false");
 
     /// <summary>
-    /// A real Chapter archive with fewer image pages than this is treated as an incomplete/corrupt
-    /// download (see DownloadChapterFromMangaconnectorWorker and Chapter.CheckDownloaded) rather than
-    /// a genuinely short Chapter. 2-page Chapters do legitimately occur (e.g. short bonus/extra
-    /// chapters), so only a lone page is treated as suspicious.
+    /// A real Chapter archive with fewer image pages than this is treated as empty/corrupt (see
+    /// Chapter.CheckDownloaded). Genuine single-page bonus/extra Chapters do occur, so this only
+    /// catches a completely empty archive, not a short one.
     /// </summary>
-    public const int MinPlausibleChapterPageCount = 2;
+    public const int MinPlausibleChapterPageCount = 1;
     
     public static readonly int HttpRequestTimeout =  int.Parse(Environment.GetEnvironmentVariable("HTTP_REQUEST_TIMEOUT") ?? "60");
     public static readonly int RequestsPerMinute =  int.Parse(Environment.GetEnvironmentVariable("REQUESTS_PER_MINUTE") ?? "90");

@@ -91,23 +91,9 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
                 chapter.ParentManga.Name, chapter.ChapterNumber, DownloadPhase.FetchingUrls);
 
         string[] imageUrls = mangaConnector.GetChapterImageUrls(mangaConnectorId);
-        if (imageUrls.Length < 1)
-        {
-            Log.Info($"No imageUrls for chapter {chapter}");
-            await TrySwitchToSiblingSource(mangaConnectorId);
-            this.Fail();
-            if (ProgressReporter is not null)
-                await ProgressReporter.ReportFailed(this, chapter.Key, chapter.ParentMangaId, chapter.ParentManga.Name, chapter.ChapterNumber);
-            return [];
-        }
-
-        // A real manga Chapter is essentially never a single page - that few almost always means
-        // the Connector's page-scraping missed most of the Chapter (e.g. an image-extension filter
-        // dropping pages), not that the Chapter genuinely only has this many. Failing here instead of
-        // silently downloading a truncated Chapter lets it be retried instead of being marked Downloaded.
         if (imageUrls.Length < Constants.MinPlausibleChapterPageCount)
         {
-            Log.Warn($"Only {imageUrls.Length} imageUrls found for chapter {chapter} - suspiciously low, likely an incomplete scrape.");
+            Log.Info($"No imageUrls for chapter {chapter}");
             await TrySwitchToSiblingSource(mangaConnectorId);
             this.Fail();
             if (ProgressReporter is not null)
