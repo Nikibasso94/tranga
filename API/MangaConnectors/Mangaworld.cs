@@ -238,10 +238,22 @@ public sealed class Mangaworld : MangaConnector
                             || u.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
                             || u.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
                             || u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
-                            || u.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)));
+                            || u.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                        && IsChapterPageImage(u));
 
         return fromDom.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
+
+    /// <summary>
+    /// A dead/soft-404 chapter link still returns 200 OK with a generic page (e.g. the site logo),
+    /// which would otherwise be picked up as a fake single-page chapter. Real chapter pages are
+    /// always served from a "cdn." subdomain under a "/chapters/" path, unlike site-wide assets
+    /// (logos, icons, ...) served from the main domain - restricting to that pattern filters those out.
+    /// </summary>
+    private static bool IsChapterPageImage(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out Uri? imgUri)
+        && imgUri.Host.StartsWith("cdn.", StringComparison.OrdinalIgnoreCase)
+        && imgUri.AbsolutePath.Contains("/chapters/", StringComparison.OrdinalIgnoreCase);
 
     private static readonly Regex SeriesUrl = new Regex(@"https?://[^/]+/manga/(?<id>\d+)/(?<slug>[^/]+)/?", RegexOptions.IgnoreCase);
 
