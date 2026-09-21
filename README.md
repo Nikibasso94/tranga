@@ -49,6 +49,7 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - Chapter links are refreshed on every re-scan instead of only when brand new - fixes both duplicate/dead links from the same connector, and old undownloaded chapters getting stuck on a URL from before the site changed domains
 - Fixed the chapter download-source toggle acting on the wrong row when a chapter has two links from the same connector
 - When a chapter download fails (dead/404 link, or implausibly few pages) and another link exists for the same chapter, it's now tried automatically on the next attempt instead of retrying the same dead link forever
+- A dead link that still responds `200 OK` with a generic page (e.g. the site logo) no longer gets downloaded as a fake 1-page chapter - only images actually served from the chapter reader's CDN path are counted as pages
 
 **New features**
 - Per-Manga chapter download progress (`/v2/Manga` now returns total/downloaded chapter counts)
