@@ -56,21 +56,25 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
             mangaConnector.GetChapters(mangaConnectorId, language).DistinctBy(c => c.Item1.Key).ToArray();
         Log.DebugFormat("Got {0} chapters from connector.", allChapters.Length);
         
-        // Filter for new Chapters
+        // An id is "new" if no already-known ChapterId (for any Chapter) has the same (connector, id).
+        List<MangaConnectorId<Chapter>> existingChapterIds = manga.Chapters.SelectMany(c => c.MangaConnectorIds).ToList();
+        bool IdIsNew(MangaConnectorId<Chapter> id) => !existingChapterIds.Any(existing =>
+            existing.MangaConnectorName == id.MangaConnectorName && existing.IdOnConnectorSite == id.IdOnConnectorSite);
+
+        // Filter for new Chapters. A "new" Chapter number only counts if at least one of its ids is
+        // actually new - otherwise every id it has is already attached to a *different*, existing
+        // Chapter, meaning the site re-labelled an already-known page under a new chapter number rather
+        // than publishing something new. Creating a Chapter for that would leave it permanently stuck
+        // with no usable download source, since its only id(s) are already claimed elsewhere.
         List<(Chapter chapter, MangaConnectorId<Chapter> chapterId)> newChapters = allChapters.Where<(Chapter chapter, MangaConnectorId<Chapter> chapterId)>(ch =>
-            manga.Chapters.All(c => c.Key != ch.chapter.Key)).ToList();
+            manga.Chapters.All(c => c.Key != ch.chapter.Key) && IdIsNew(ch.chapterId)).ToList();
         Log.DebugFormat("Got {0} new chapters.", newChapters.Count);
 
         // Add Chapters to Manga
         manga.Chapters = manga.Chapters.Union(newChapters.Select(ch => ch.chapter)).ToList();
-        
+
         // Filter for new ChapterIds
-        List<MangaConnectorId<Chapter>> existingChapterIds = manga.Chapters.SelectMany(c => c.MangaConnectorIds).ToList();
-        List<MangaConnectorId<Chapter>> newIds = allChapters.Select(ch => ch.chapterId)
-            .Where(newCh => !existingChapterIds.Any(existing =>
-                existing.MangaConnectorName == newCh.MangaConnectorName &&
-                existing.IdOnConnectorSite == newCh.IdOnConnectorSite))
-            .ToList();
+        List<MangaConnectorId<Chapter>> newIds = allChapters.Select(ch => ch.chapterId).Where(IdIsNew).ToList();
         // Match tracked entities of Chapters
         foreach (MangaConnectorId<Chapter> newId in newIds)
             newId.Obj = manga.Chapters.First(ch => ch.Key == newId.ObjId);
