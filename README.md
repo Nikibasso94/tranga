@@ -43,6 +43,8 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - Fixed every `Settings` PATCH endpoint (UserAgent, naming scheme, image compression, ...) only persisting to `settings.json` without ever taking effect on the running process, and clobbering each other's changes on disk if called back-to-back - caused by a mutable settings struct stored in a `readonly` field
 - Fixed the download queue starving: a chronically-failing chapter was re-selected on every scheduling cycle forever, blocking every other missing chapter behind it (including newly-released chapters) from ever getting a download attempt in a large library. Chapters are now skipped for `CHAPTER_RETRY_COOLDOWN_MINUTES` (default 30) after each attempt so the queue actually rotates
 - Fixed a `.gitignore` rule meant to exclude the downloaded manga library also matching `API/Migrations/Manga/`, silently dropping new EF Core migrations from version control
+- Fixed `AddDefaultWorkers()` (which registers new-chapter discovery and the download queue) only running after the startup chapter-validation pass finished - on a large library that pass can take an hour or more, during which nothing downloaded at all, new or already-missing
+- Fixed newly-released chapters getting silently stuck with no usable download source when the connector re-labels an already-known page under a new/corrected chapter number instead of publishing something genuinely new
 
 **Mangaworld connector**
 - Fixed pages being dropped when served as `.gif` (was silently producing truncated or completely failed chapters)
