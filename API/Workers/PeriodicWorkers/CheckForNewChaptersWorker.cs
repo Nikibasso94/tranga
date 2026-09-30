@@ -12,7 +12,20 @@ public class CheckForNewChaptersWorker(TimeSpan? interval = null, IEnumerable<Ba
     : BaseWorkerWithContexts(dependsOn), IPeriodic
 {
     public DateTime LastExecution { get; set; } = DateTime.UnixEpoch;
-    public TimeSpan Interval { get; set; } = interval??Constants.CheckForNewChaptersInterval;
+    private TimeSpan? _fixedInterval = interval;
+    // Read from Settings on every access (not captured once) so a change via the API takes effect on
+    // the next reschedule, instead of only after a restart - unless explicitly overridden (e.g. tests).
+    public TimeSpan Interval
+    {
+        // Existing settings.json files written before this setting existed deserialize it as 0 (the
+        // struct's own field initializer doesn't apply to a JSON property that's simply absent) - falls
+        // back to the original default instead of that turning into a zero-wait, hammering tight loop
+        // (or silently becoming a much more frequent 30-minute check nobody asked for).
+        get => _fixedInterval ?? TimeSpan.FromMinutes(Tranga.Settings.CheckForNewChaptersIntervalMinutes > 0
+            ? Tranga.Settings.CheckForNewChaptersIntervalMinutes
+            : Constants.CheckForNewChaptersInterval.TotalMinutes);
+        set => _fixedInterval = value;
+    }
     
     [SuppressMessage("ReSharper", "InconsistentNaming")]
     private MangaContext MangaContext = null!;

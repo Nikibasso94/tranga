@@ -50,6 +50,8 @@ public struct TrangaSettings
 
     public int RefreshLibraryWhileDownloadingEveryMinutes { get; set; } = 10;
 
+    public int CheckForNewChaptersIntervalMinutes { get; set; } = (int)Constants.CheckForNewChaptersInterval.TotalMinutes;
+
     public TrangaSettings()
     {
         Directory.CreateDirectory(WorkingDirectory);
@@ -124,6 +126,12 @@ public struct TrangaSettings
     public void SetRefreshLibraryWhileDownloadingEveryMinutes(int value)
     {
         this.RefreshLibraryWhileDownloadingEveryMinutes = value;
+        Save();
+    }
+
+    public void SetCheckForNewChaptersIntervalMinutes(int value)
+    {
+        this.CheckForNewChaptersIntervalMinutes = value;
         Save();
     }
 }

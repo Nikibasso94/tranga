@@ -286,6 +286,39 @@ public class SettingsController() : ControllerBase
     }
 
     /// <summary>
+    /// Returns how often (in minutes) Manga are checked for new Chapters
+    /// </summary>
+    /// <response code="200"></response>
+    [HttpGet("CheckForNewChaptersIntervalMinutes")]
+    [ProducesResponseType<int>(Status200OK, "text/plain")]
+    public Ok<int> GetCheckForNewChaptersIntervalMinutes()
+    {
+        // 0 means "never explicitly set" (see CheckForNewChaptersWorker.Interval) - report the value
+        // that's actually in effect, not the raw stored 0.
+        int value = Tranga.Settings.CheckForNewChaptersIntervalMinutes > 0
+            ? Tranga.Settings.CheckForNewChaptersIntervalMinutes
+            : (int)Constants.CheckForNewChaptersInterval.TotalMinutes;
+        return TypedResults.Ok(value);
+    }
+
+    /// <summary>
+    /// Sets how often (in minutes) Manga are checked for new Chapters
+    /// </summary>
+    /// <param name="value">Minimum of 30</param>
+    /// <response code="200"></response>
+    /// <response code="400">Value outside permitted range</response>
+    [HttpPatch("CheckForNewChaptersIntervalMinutes/{value}")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType(Status400BadRequest)]
+    public Results<Ok, BadRequest> SetCheckForNewChaptersIntervalMinutes(int value)
+    {
+        if (value < 30)
+            return TypedResults.BadRequest();
+        Tranga.Settings.SetCheckForNewChaptersIntervalMinutes(value);
+        return TypedResults.Ok();
+    }
+
+    /// <summary>
     /// Sets the time when Libraries are refreshed
     /// </summary>
     /// <response code="200"></response>
