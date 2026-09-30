@@ -42,4 +42,13 @@ public struct Constants
     /// in a large backlog.
     /// </summary>
     public static readonly TimeSpan ChapterRetryCooldown = TimeSpan.FromMinutes(int.Parse(Environment.GetEnvironmentVariable("CHAPTER_RETRY_COOLDOWN_MINUTES") ?? "30"));
+
+    /// <summary>
+    /// Login is only required if both are set - deployments that don't set them keep working exactly
+    /// as before (no login page, no protected endpoints). Not stored in TrangaSettings: that struct is
+    /// returned verbatim by GET /v2/Settings, which would leak the password to anyone who could reach it.
+    /// </summary>
+    public static readonly string? AuthUsername = Environment.GetEnvironmentVariable("AUTH_USERNAME");
+    public static readonly string? AuthPassword = Environment.GetEnvironmentVariable("AUTH_PASSWORD");
+    public static bool AuthEnabled => AuthUsername is not null && AuthPassword is not null;
 }

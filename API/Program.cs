@@ -1,5 +1,8 @@
 using System.Reflection;
+using System.Text;
 using API;
+using API.Auth;
+using API.Controllers;
 using API.Hubs;
 using API.Schema.ActionsContext;
 using API.Schema.ActionsContext.Actions;
@@ -12,7 +15,10 @@ using Asp.Versioning.Builder;
 using Asp.Versioning.Conventions;
 using log4net;
 using log4net.Config;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Newtonsoft.Json.Converters;
 using Npgsql;
@@ -128,6 +134,37 @@ builder.Services.AddControllers(options =>
 });
 builder.Services.AddScoped<ILog>(_ => LogManager.GetLogger("API"));
 
+// Login is opt-in (see Constants.AuthEnabled) - only actually enforced if AUTH_USERNAME/AUTH_PASSWORD
+// are set, so existing deployments that don't configure them keep working unauthenticated as before.
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(AuthKeyProvider.GetOrCreateSigningKey())
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (context.Request.Cookies.TryGetValue(AuthController.CookieName, out string? token))
+                    context.Token = token;
+                return Task.CompletedTask;
+            }
+        };
+    });
+builder.Services.AddAuthorization(options =>
+{
+    if (Constants.AuthEnabled)
+        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+});
+
 builder.WebHost.UseUrls($"http://*:{TrangaSettings.Port}");
 
 log.Info("Starting app...");
@@ -139,6 +176,9 @@ ApiVersionSet apiVersionSet = app.NewApiVersionSet()
     .Build();
 
 app.UseCors("AllowAll");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 log.Debug("Mapping Controllers...");
 app.MapControllers()
