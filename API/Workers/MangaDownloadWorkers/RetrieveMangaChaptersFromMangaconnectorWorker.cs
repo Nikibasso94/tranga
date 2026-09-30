@@ -99,6 +99,7 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
         // IdOnConnectorSite (e.g. a dead link the site re-issued under a new URL) - otherwise the stale
         // dead link (still UseForDownload) keeps being retried forever while the working one sits unused.
         // Already-downloaded Chapters are left alone; the sibling swap mirrors ChaptersController.MarkAsRequested.
+        Log.DebugFormat("Manga-level UseForDownload for {0}: {1}", manga, mangaConnectorId.UseForDownload);
         if (mangaConnectorId.UseForDownload)
         {
             Dictionary<string, List<MangaConnectorId<Chapter>>> idsByChapter = existingChapterIds.Concat(newIds)
@@ -108,8 +109,12 @@ public class RetrieveMangaChaptersFromMangaconnectorWorker(MangaConnectorId<Mang
             foreach (MangaConnectorId<Chapter> newId in newIds)
             {
                 if (newId.Obj.Downloaded)
+                {
+                    Log.DebugFormat("Not promoting {0}: Chapter already marked Downloaded.", newId);
                     continue;
+                }
 
+                Log.DebugFormat("Promoting {0} ({1}) to UseForDownload=true.", newId, newId.Obj);
                 newId.UseForDownload = true;
                 foreach (MangaConnectorId<Chapter> sibling in idsByChapter[newId.ObjId].Where(id => id.Key != newId.Key))
                     sibling.UseForDownload = false;
