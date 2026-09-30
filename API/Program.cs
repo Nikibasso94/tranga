@@ -275,11 +275,14 @@ Tranga.ServiceProvider = app.Services;
 // take a while, and it used to run before RunAsync(), so Kestrel wouldn't even accept a connection until
 // it was done. Running it on a background thread instead lets the API (and the Worker endpoints) come up
 // immediately, so startup progress can be watched from the web UI rather than the whole site looking down.
-_ = Task.Run(() =>
-{
-    Tranga.StartupTasks();
-    Tranga.AddDefaultWorkers();
-});
+//
+// AddDefaultWorkers() runs in its own, separate background task rather than after StartupTasks() -
+// otherwise, on a large library where the chapter-validation pass in StartupTasks() can take an hour or
+// more, CheckForNewChaptersWorker and StartNewChapterDownloadsWorker (registered by AddDefaultWorkers())
+// wouldn't start until it finished, so nothing would download - not even already-missing chapters, let
+// alone newly-released ones - for the entire duration.
+_ = Task.Run(Tranga.StartupTasks);
+_ = Task.Run(Tranga.AddDefaultWorkers);
 
 log.Info("Running app.");
 await app.RunAsync();
