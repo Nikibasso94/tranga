@@ -59,6 +59,7 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - Deleting a Manga or Chapter now also deletes its downloaded files on disk (previously only the database record was removed, leaving orphaned files); Manga deletion supports keeping the files (`deleteFiles=false`) to just stop tracking it
 - The Actions (audit log) endpoint now includes the Manga name and Chapter number instead of only their ids
 - `MaxConcurrentDownloads` and `MaxConcurrentWorkers` can now be changed at runtime via the API (`PATCH /v2/Settings/MaxConcurrentDownloads/{value}` and `.../MaxConcurrentWorkers/{value}`), instead of only by editing `settings.json` and restarting
+- Optional username/password login: set `AUTH_USERNAME`/`AUTH_PASSWORD` to require `POST /v2/Auth/Login` (HttpOnly JWT cookie) before any other endpoint works. Left unset (the default), every deployment keeps working exactly as before, unauthenticated
 
 **Infrastructure**
 - Docker images are published to `ghcr.io/nikibasso94/tranga-api` instead of the upstream Docker Hub namespace
