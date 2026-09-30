@@ -42,7 +42,14 @@ public class StartNewChapterDownloadsWorker(TimeSpan? interval = null, IEnumerab
         int amountNewWorkers = Math.Min(Tranga.Settings.MaxConcurrentDownloads, Tranga.Settings.MaxConcurrentDownloads - downloadWorkers);
         
         Log.DebugFormat("{0} running download Workers. {1} available new download Workers.", downloadWorkers, amountNewWorkers);
-        IEnumerable<MangaConnectorId<Chapter>> newDownloadChapters = missingChapters.OrderBy(ch => ch.Obj, new Chapter.ChapterComparer()).Take(amountNewWorkers);
+
+        // Skip Chapters attempted too recently. Without this, the same first N Chapters (by sort order)
+        // get re-selected on every cycle forever if they keep failing, starving out every other missing
+        // Chapter - including newly-released ones - further back in a large backlog.
+        DateTime cooldownCutoff = DateTime.UtcNow - Constants.ChapterRetryCooldown;
+        IEnumerable<MangaConnectorId<Chapter>> eligibleChapters =
+            missingChapters.Where(ch => ch.LastDownloadAttempt is null || ch.LastDownloadAttempt < cooldownCutoff);
+        IEnumerable<MangaConnectorId<Chapter>> newDownloadChapters = eligibleChapters.OrderBy(ch => ch.Obj, new Chapter.ChapterComparer()).Take(amountNewWorkers);
 
         // Create new jobs
         List<BaseWorker> newWorkers = newDownloadChapters.Select(mcId => new DownloadChapterFromMangaconnectorWorker(mcId)).ToList<BaseWorker>();

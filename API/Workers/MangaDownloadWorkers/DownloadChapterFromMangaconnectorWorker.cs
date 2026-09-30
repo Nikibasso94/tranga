@@ -76,6 +76,13 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         Log.Debug($"Downloading chapter for MangaConnectorId {mangaConnectorId}...");
         
         Chapter chapter = mangaConnectorId.Obj;
+
+        // Recorded before the attempt (not just on failure) and persisted immediately, so it's not
+        // lost if this Worker fails partway through - see StartNewChapterDownloadsWorker's cooldown.
+        mangaConnectorId.LastDownloadAttempt = DateTime.UtcNow;
+        if(await MangaContext.Sync(CancellationToken, GetType(), "Recording download attempt") is { success: false } attemptSyncException)
+            Log.Error($"Failed to save database changes: {attemptSyncException.exceptionMessage}");
+
         if (chapter.ParentManga.LibraryId is null)
         {
             Log.Info($"Library is not set for {chapter.ParentManga} {chapter}");

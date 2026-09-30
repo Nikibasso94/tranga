@@ -449,7 +449,7 @@
         "tags": [
           "Chapters"
         ],
-        "summary": "Deletes API.Controllers.DTOs.Chapter with ChapterId",
+        "summary": "Deletes API.Controllers.DTOs.Chapter with ChapterId, including its archive on disk",
         "parameters": [
           {
             "name": "ChapterId",
@@ -467,6 +467,16 @@
           },
           "404": {
             "description": "API.Controllers.DTOs.Chapter with ChapterId not found",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error during Database Operation",
             "content": {
               "text/plain; x-version=2.0": {
                 "schema": {
@@ -551,26 +561,17 @@
         }
       }
     },
-    "/v2/Chapters/{ChapterId}/DownloadFrom/{MangaConnectorName}/{IsRequested}": {
+    "/v2/Chapters/ConnectorId/{MangaConnectorIdId}/DownloadFrom/{IsRequested}": {
       "patch": {
         "tags": [
           "Chapters"
         ],
-        "summary": "(Un-)Marks API.Controllers.DTOs.Chapter as requested for Download from API.MangaConnectors.MangaConnector",
+        "summary": "(Un-)Marks a API.Controllers.DTOs.Chapter as requested for Download from the API.Controllers.DTOs.MangaConnectorId`1 with MangaConnectorIdId",
         "parameters": [
           {
-            "name": "ChapterId",
+            "name": "MangaConnectorIdId",
             "in": "path",
-            "description": "API.Controllers.DTOs.Chapter with ChapterId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "MangaConnectorName",
-            "in": "path",
-            "description": "API.MangaConnectors.MangaConnector with MangaConnectorName",
+            "description": "Key of API.Controllers.DTOs.MangaConnectorId`1",
             "required": true,
             "schema": {
               "type": "string"
@@ -591,7 +592,51 @@
             "description": ""
           },
           "404": {
-            "description": "ChapterId or MangaConnectorName not found",
+            "description": "API.Controllers.DTOs.MangaConnectorId`1 with MangaConnectorIdId not found",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error during Database Operation",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Chapters/{ChapterId}/ForceRedownload": {
+      "post": {
+        "tags": [
+          "Chapters"
+        ],
+        "summary": "Deletes the existing archive (if any) for API.Controllers.DTOs.Chapter with ChapterId, marks it\nnot-downloaded, and immediately queues a fresh download from its currently active source.",
+        "parameters": [
+          {
+            "name": "ChapterId",
+            "in": "path",
+            "description": "API.Controllers.DTOs.Chapter with ChapterId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "404": {
+            "description": "ChapterId not found",
             "content": {
               "text/plain; x-version=2.0": {
                 "schema": {
@@ -611,7 +656,7 @@
             }
           },
           "428": {
-            "description": "API.Controllers.DTOs.Chapter is not linked to API.MangaConnectors.MangaConnector yet. Search for API.Controllers.DTOs.Chapter on API.MangaConnectors.MangaConnector first (to create a API.Controllers.DTOs.MangaConnectorId`1).",
+            "description": "API.Controllers.DTOs.Chapter has no source currently set to download from",
             "content": {
               "text/plain; x-version=2.0": {
                 "schema": {
@@ -1263,6 +1308,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "deleteFiles",
+            "in": "query",
+            "description": "Whether to also delete the Manga's downloaded chapters from disk (default true). Set to false to only stop tracking it, keeping the files.",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
           }
         ],
         "responses": {
@@ -1354,7 +1408,7 @@
           {
             "name": "CoverSize",
             "in": "path",
-            "description": "Size of the cover returned\r\n            \r\n - API.Controllers.MangaController.CoverSize.SmallAPI.Constants.ImageSmSize\r\n - API.Controllers.MangaController.CoverSize.MediumAPI.Constants.ImageMdSize\r\n - API.Controllers.MangaController.CoverSize.LargeAPI.Constants.ImageLgSize",
+            "description": "Size of the cover returned\n            \n - API.Controllers.MangaController.CoverSize.SmallAPI.Constants.ImageSmSize\n - API.Controllers.MangaController.CoverSize.MediumAPI.Constants.ImageMdSize\n - API.Controllers.MangaController.CoverSize.LargeAPI.Constants.ImageLgSize",
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/CoverSize"
@@ -2903,6 +2957,29 @@
         }
       }
     },
+    "/v2/Stats/MissingChapters": {
+      "get": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Returns the number of missing (not downloaded) Chapters per Manga, descending by missing count",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MissingChaptersByManga"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v2/Search/{MangaConnectorName}/{Query}": {
       "get": {
         "tags": [
@@ -3231,7 +3308,7 @@
           "Settings"
         ],
         "summary": "Gets the Chapter Naming Scheme",
-        "description": "Placeholders:\r\n%M Obj Name\r\n%V Volume\r\n%C Chapter\r\n%T Title\r\n%A Author (first in list)\r\n%I Chapter Internal ID\r\n%i Obj Internal ID\r\n%Y Year (Obj)\r\n            \r\n?_(...) replace _ with a value from above:\r\nEverything inside the braces will only be added if the value of %_ is not null",
+        "description": "Placeholders:\n%M Obj Name\n%V Volume\n%C Chapter\n%T Title\n%A Author (first in list)\n%I Chapter Internal ID\n%i Obj Internal ID\n%Y Year (Obj)\n            \n?_(...) replace _ with a value from above:\nEverything inside the braces will only be added if the value of %_ is not null",
         "responses": {
           "200": {
             "description": "",
@@ -3250,7 +3327,7 @@
           "Settings"
         ],
         "summary": "Sets the Chapter Naming Scheme",
-        "description": "Placeholders:\r\n%M Obj Name\r\n%V Volume\r\n%C Chapter\r\n%T Title\r\n%A Author (first in list)\r\n%Y Year (Obj)\r\n            \r\n?_(...) replace _ with a value from above:\r\nEverything inside the braces will only be added if the value of %_ is not null",
+        "description": "Placeholders:\n%M Obj Name\n%V Volume\n%C Chapter\n%T Title\n%A Author (first in list)\n%Y Year (Obj)\n            \n?_(...) replace _ with a value from above:\nEverything inside the braces will only be added if the value of %_ is not null",
         "requestBody": {
           "content": {
             "application/json-patch+json; x-version=2.0": {
@@ -3390,6 +3467,138 @@
         }
       }
     },
+    "/v2/Settings/MaxConcurrentDownloads": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Returns the maximum amount of Chapters downloaded at the same time",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Settings/MaxConcurrentDownloads/{value}": {
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets the maximum amount of Chapters downloaded at the same time",
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "description": "Minimum of 1",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "Value outside permitted range",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Settings/MaxConcurrentWorkers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Returns the maximum amount of Workers (Jobs) running at the same time",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Settings/MaxConcurrentWorkers/{value}": {
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets the maximum amount of Workers (Jobs) running at the same time",
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "description": "Minimum of 1",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "Value outside permitted range",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v2/Settings/LibraryRefresh": {
       "patch": {
         "tags": [
@@ -3523,6 +3732,58 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Worker"
+        ],
+        "summary": "Removes a finished (Failed/Cancelled/Completed) API.Workers.BaseWorker with WorkerId from the known-worker list",
+        "parameters": [
+          {
+            "name": "WorkerId",
+            "in": "path",
+            "description": "API.Workers.BaseWorker.Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "404": {
+            "description": "API.Workers.BaseWorker with WorkerId could not be found",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "API.Workers.BaseWorker is still Waiting/Running and can not be removed",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v2/Worker/{WorkerId}/Stop": {
@@ -3609,6 +3870,16 @@
           "chapterId": {
             "type": "string",
             "description": "ChapterId if Record is API.Schema.ActionsContext.Actions.Generic.IActionWithMangaRecord",
+            "nullable": true
+          },
+          "mangaName": {
+            "type": "string",
+            "description": "Name of the Manga with API.Controllers.DTOs.ActionRecord.MangaId, if it could still be resolved",
+            "nullable": true
+          },
+          "chapterNumber": {
+            "type": "string",
+            "description": "ChapterNumber of the Chapter with API.Controllers.DTOs.ActionRecord.ChapterId, if it could still be resolved",
             "nullable": true
           },
           "from": {
@@ -4227,6 +4498,7 @@
           "altTitles",
           "authors",
           "description",
+          "downloadedChapters",
           "fileLibraryId",
           "ignoreChaptersBefore",
           "key",
@@ -4234,7 +4506,8 @@
           "mangaConnectorIds",
           "name",
           "releaseStatus",
-          "tags"
+          "tags",
+          "totalChapters"
         ],
         "type": "object",
         "properties": {
@@ -4306,6 +4579,16 @@
               "$ref": "#/components/schemas/MangaMangaConnectorId"
             },
             "description": "Ids of the Manga on MangaConnectors"
+          },
+          "totalChapters": {
+            "type": "integer",
+            "description": "Total number of known Chapters for the Manga",
+            "format": "int32"
+          },
+          "downloadedChapters": {
+            "type": "integer",
+            "description": "Number of Chapters of the Manga that have been downloaded",
+            "format": "int32"
           },
           "key": {
             "maxLength": 64,
@@ -4462,10 +4745,12 @@
       "MinimalManga": {
         "required": [
           "description",
+          "downloadedChapters",
           "key",
           "mangaConnectorIds",
           "name",
-          "releaseStatus"
+          "releaseStatus",
+          "totalChapters"
         ],
         "type": "object",
         "properties": {
@@ -4489,6 +4774,16 @@
             },
             "description": "Ids of the Manga on MangaConnectors"
           },
+          "totalChapters": {
+            "type": "integer",
+            "description": "Total number of known Chapters for the Manga",
+            "format": "int32"
+          },
+          "downloadedChapters": {
+            "type": "integer",
+            "description": "Number of Chapters of the Manga that have been downloaded",
+            "format": "int32"
+          },
           "key": {
             "maxLength": 64,
             "minLength": 16,
@@ -4498,6 +4793,24 @@
         },
         "additionalProperties": false,
         "description": "Shortened Version of API.Controllers.DTOs.Manga"
+      },
+      "MissingChaptersByManga": {
+        "type": "object",
+        "properties": {
+          "mangaId": {
+            "type": "string",
+            "nullable": true
+          },
+          "mangaName": {
+            "type": "string",
+            "nullable": true
+          },
+          "missingCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
       },
       "NotificationConnector": {
         "required": [
@@ -4670,7 +4983,7 @@
           },
           "chapterNamingScheme": {
             "type": "string",
-            "description": "Placeholders:\r\n%M Obj Name\r\n%V Volume\r\n%C Chapter\r\n%T Title\r\n%A Author (first in list)\r\n%I Chapter Internal ID\r\n%i Obj Internal ID\r\n%Y Year (Obj)\r\n            \r\n?_(...) replace _ with a value from above:\r\nEverything inside the braces will only be added if the value of %_ is not null",
+            "description": "Placeholders:\n%M Obj Name\n%V Volume\n%C Chapter\n%T Title\n%A Author (first in list)\n%I Chapter Internal ID\n%i Obj Internal ID\n%Y Year (Obj)\n            \n?_(...) replace _ with a value from above:\nEverything inside the braces will only be added if the value of %_ is not null",
             "nullable": true
           },
           "workCycleTimeoutMs": {

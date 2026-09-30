@@ -34,4 +34,12 @@ public struct Constants
     
     public static readonly TimeSpan NotificationSendInterval = TimeSpan.FromMinutes(int.Parse(Environment.GetEnvironmentVariable("MINUTES_BETWEEN_NOTIFICATIONS") ?? "1"));
     public static readonly TimeSpan CheckForNewChaptersInterval = TimeSpan.FromHours(int.Parse(Environment.GetEnvironmentVariable("HOURS_BETWEEN_NEW_CHAPTERS_CHECK") ?? "3"));
+
+    /// <summary>
+    /// Minimum time between download attempts for the same Chapter. Without this, a chronically-failing
+    /// Chapter near the front of the missing-Chapters sort order gets re-selected on every scheduling
+    /// cycle forever, starving out every other missing Chapter (including newly-released ones) behind it
+    /// in a large backlog.
+    /// </summary>
+    public static readonly TimeSpan ChapterRetryCooldown = TimeSpan.FromMinutes(int.Parse(Environment.GetEnvironmentVariable("CHAPTER_RETRY_COOLDOWN_MINUTES") ?? "30"));
 }
