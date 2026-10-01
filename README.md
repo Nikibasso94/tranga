@@ -45,6 +45,7 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - Fixed a `.gitignore` rule meant to exclude the downloaded manga library also matching `API/Migrations/Manga/`, silently dropping new EF Core migrations from version control
 - Fixed `AddDefaultWorkers()` (which registers new-chapter discovery and the download queue) only running after the startup chapter-validation pass finished - on a large library that pass can take an hour or more, during which nothing downloaded at all, new or already-missing
 - Fixed newly-released chapters getting silently stuck with no usable download source when the connector re-labels an already-known page under a new/corrected chapter number instead of publishing something genuinely new
+- Fixed searching for a Manga by name adding *every* search result to the library (and starting their cover downloads) instead of only the one actually picked
 
 **Mangaworld connector**
 - Fixed pages being dropped when served as `.gif` (was silently producing truncated or completely failed chapters)
