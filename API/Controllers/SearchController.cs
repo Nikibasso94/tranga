@@ -34,15 +34,14 @@ public class SearchController(MangaContext context) : ControllerBase
         if (!connector.Enabled)
             return TypedResults.StatusCode(Status412PreconditionFailed);
         
+        // Preview only - every result the Connector finds used to get added to the library (and start
+        // downloading its cover) just by searching, regardless of whether the user ever picked it.
+        // Actually adding a Manga happens when the user picks one specific result, via GetMangaFromUrl.
         (Manga manga, Schema.MangaContext.MangaConnectorId<Manga> id)[] mangas = connector.SearchManga(Query);
 
-        IEnumerable<(Manga manga, Schema.MangaContext.MangaConnectorId<Manga> id)> addedManga =
-            mangas.Select(kv => context.AddMangaToContext(kv, HttpContext.RequestAborted))
-                .Where(t => t.Result is not null)
-                .Select(t => t.Result)
-                .Cast<(Manga manga, Schema.MangaContext.MangaConnectorId<Manga> id)>();
-        IEnumerable<MinimalManga> result = addedManga.Select(manga => manga.manga).Select(m =>
+        IEnumerable<MinimalManga> result = mangas.Select(kv =>
         {
+            Manga m = kv.manga;
             IEnumerable<DTOs.MangaConnectorId<DTOs.Manga>> ids = m.MangaConnectorIds.Select(id =>
                 new DTOs.MangaConnectorId<DTOs.Manga>(id.Key, id.MangaConnectorName, id.ObjId, id.WebsiteUrl, id.UseForDownload));
             return new MinimalManga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids);
