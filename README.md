@@ -175,13 +175,57 @@ The container also spins up a Swagger site at `http://<url>/swagger`.
 
 ### Docker
 
-Built for AMD64.
-Also available for ARM64 and ARMv7 if it feels like it (dependencies aren't always your friend).
+Images for this fork are published to `ghcr.io/nikibasso94/tranga-api` and `ghcr.io/nikibasso94/tranga-web`.
 
-An example `docker-compose.yaml` is provided. Mount `/Manga` to wherever you want your chapters (`.cbz`-Archives)
-downloaded (where Komga/Kavita can access them for example).  
-The file also includes [tranga-website](https://github.com/C9Glax/tranga-website) as frontend. For its configuration refer to the
-[Tranga-Website Repository](https://github.com/C9Glax/tranga-website) README.
+Save this as `docker-compose.yaml`, then run `docker compose up -d`:
+
+```yaml
+services:
+  tranga-api:
+    image: ghcr.io/nikibasso94/tranga-api:latest
+    container_name: tranga-api
+    user: "${UID}:${GID}"
+    volumes:
+      - ./Manga:/Manga
+      - ./settings:/usr/share/tranga-api
+    ports:
+      - "6531:6531"
+    depends_on:
+      tranga-pg:
+        condition: service_healthy
+    environment:
+      - POSTGRES_HOST=tranga-pg
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      # - AUTH_USERNAME=admin        # optional login, see the table below
+      # - AUTH_PASSWORD=change-me
+    restart: unless-stopped
+  tranga-website:
+    image: ghcr.io/nikibasso94/tranga-web:latest
+    container_name: tranga-website
+    ports:
+      - "9555:80"
+    depends_on:
+      - tranga-api
+    restart: unless-stopped
+  tranga-pg:
+    image: postgres:17
+    container_name: tranga-pg
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-U", "postgres"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+    restart: unless-stopped
+```
+
+Mount `/Manga` to wherever you want your chapters (`.cbz`-Archives) downloaded (where Komga/Kavita can access them,
+for example). Open `http://<host>:9555` for the web UI once both containers are up - see
+[tranga-website](https://github.com/Nikibasso94/tranga-website) for what it offers on top of the API.
 
 | Environment Variable              | default          | Description                                                                                                      |
 |-----------------------------------|------------------|------------------------------------------------------------------------------------------------------------------|
@@ -201,7 +245,9 @@ The file also includes [tranga-website](https://github.com/C9Glax/tranga-website
 | HTTP_REQUEST_TIMEOUT              | `10`             | Request timeout for Mangaconnectors                                                                              |
 | REQUESTS_PER_MINUTE               | `90`             | Maximum requests per minute for Mangaconnectors (Don't change)                                                   |
 | MINUTES_BETWEEN_NOTIFICATIONS     | `1`              | Interval at which Tranga checks if notifications need to be sent.                                                |
-| HOURS_BETWEEN_NEW_CHAPTERS_CHECK  | `3`              | Interval at which Tranga checks if there are new chapters for a manga                                            |
+| HOURS_BETWEEN_NEW_CHAPTERS_CHECK  | `3`              | Default interval for new-chapter checks (also changeable at runtime, see Settings in the web UI)                 |
+| CHAPTER_RETRY_COOLDOWN_MINUTES    | `30`             | Minimum time between download attempts for the same chapter, so one chronically-failing chapter can't starve the rest of a large queue |
+| AUTH_USERNAME / AUTH_PASSWORD     | <empty>          | Set both to require a login (web UI and API) before anything is accessible. Left unset, there's no login at all |
 | WORKER_TIMEOUT                    | `600`            | Seconds a worker can take before being forcefully cancelled                                                      |
 
 ### Bare-Metal
