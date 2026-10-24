@@ -7,7 +7,13 @@ public struct Constants
     public static readonly Size ImageSmSize = new (225, 320);
     public static readonly Size ImageMdSize = new (450, 640);
     public static readonly Size ImageLgSize = new (900, 1280);
-    
+
+    /// <summary>
+    /// Max page size for the EPUB conversion - a Kindle Paperwhite's screen resolution. Pages are
+    /// downscaled to fit (never upscaled), not stretched to match exactly.
+    /// </summary>
+    public static readonly Size KindleImageSize = new (1072, 1448);
+
     public static readonly string PostgresHost = Environment.GetEnvironmentVariable("POSTGRES_HOST") ?? "tranga-pg:5432";
     public static readonly string PostgresDb = Environment.GetEnvironmentVariable("POSTGRES_DB") ?? "postgres";
     public static readonly string PostgresUser = Environment.GetEnvironmentVariable("POSTGRES_USER") ?? "postgres";

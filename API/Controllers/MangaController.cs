@@ -129,6 +129,34 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         return TypedResults.Ok();
     }
 
+    /// <summary>
+    /// Converts every downloaded Chapter of a Manga to a Kindle-friendly .epub (fixed-layout, grayscale,
+    /// downscaled to a Kindle Paperwhite's resolution), replacing the .cbz on disk. This is destructive
+    /// (the .cbz is deleted once the .epub for it is written) and queues one Worker per Chapter in the
+    /// background rather than converting synchronously, since a large Manga can have thousands of them.
+    /// </summary>
+    /// <param name="MangaId"><see cref="Manga"/>.Key</param>
+    /// <response code="200">Conversion jobs have been queued</response>
+    /// <response code="404"><paramref name="MangaId"/> not found</response>
+    [HttpPost("{MangaId}/ConvertToEpub")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType<string>(Status404NotFound, "text/plain")]
+    public async Task<Results<Ok, NotFound<string>>> ConvertToEpub(string MangaId)
+    {
+        if (await context.Mangas.Include(m => m.Chapters).FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
+            return TypedResults.NotFound(nameof(MangaId));
+
+        BaseWorker[] workers = manga.Chapters.Where(c => c.Downloaded)
+            .Select(c => (BaseWorker)new ConvertChapterToEpubWorker(c))
+            .ToArray();
+        // Queueing is done on a background thread, not inline here: adding workers beyond
+        // MaxConcurrentWorkers blocks the caller until a slot frees up, which for a Manga with
+        // thousands of Chapters would otherwise hang this request for a very long time.
+        _ = Task.Run(() => Tranga.AddWorkers(workers));
+
+        return TypedResults.Ok();
+    }
+
 
     /// <summary>
     /// Merge two <see cref="Manga"/> into one. THIS IS NOT REVERSIBLE!
