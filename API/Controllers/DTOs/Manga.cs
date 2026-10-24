@@ -7,7 +7,7 @@ namespace API.Controllers.DTOs;
 /// <summary>
 /// <see cref="Schema.MangaContext.Manga"/> DTO
 /// </summary>
-public sealed record Manga(string Key, string Name, string Description, MangaReleaseStatus ReleaseStatus, IEnumerable<MangaConnectorId<Manga>> MangaConnectorIds, float IgnoreChaptersBefore, uint? Year, string? OriginalLanguage, IEnumerable<Author> Authors, IEnumerable<string> Tags, IEnumerable<Link> Links, IEnumerable<AltTitle> AltTitles, string? FileLibraryId)
+public sealed record Manga(string Key, string Name, string Description, MangaReleaseStatus ReleaseStatus, IEnumerable<MangaConnectorId<Manga>> MangaConnectorIds, float IgnoreChaptersBefore, uint? Year, string? OriginalLanguage, IEnumerable<Author> Authors, IEnumerable<string> Tags, IEnumerable<Link> Links, IEnumerable<AltTitle> AltTitles, string? FileLibraryId, bool AutoConvertToEpub)
     : MinimalManga(Key, Name, Description, ReleaseStatus, MangaConnectorIds)
 {
     /// <summary>
@@ -63,4 +63,11 @@ public sealed record Manga(string Key, string Name, string Description, MangaRel
     [Required]
     [Description("Id of the Library the Manga gets downloaded to")]
     public string? FileLibraryId { get; init; } = FileLibraryId;
+
+    /// <summary>
+    /// Whether newly-downloaded Chapters are automatically converted to Kindle-friendly .epub
+    /// </summary>
+    [Required]
+    [Description("Whether newly-downloaded Chapters are automatically converted to Kindle-friendly .epub")]
+    public bool AutoConvertToEpub { get; init; } = AutoConvertToEpub;
 }

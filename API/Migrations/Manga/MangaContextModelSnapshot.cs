@@ -135,6 +135,9 @@ namespace API.Migrations.Manga
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<bool>("AutoConvertToEpub")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("CoverFileNameInCache")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");

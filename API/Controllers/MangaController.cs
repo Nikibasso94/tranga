@@ -93,7 +93,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         IEnumerable<string> tags = manga.MangaTags.Select(t => t.Tag);
         IEnumerable<Link> links = manga.Links.Select(l => new Link(l.Key, l.LinkProvider, l.LinkUrl));
         IEnumerable<AltTitle> altTitles = manga.AltTitles.Select(a => new AltTitle(a.Language, a.Title));
-        Manga result = new (manga.Key, manga.Name, manga.Description, manga.ReleaseStatus, ids, manga.IgnoreChaptersBefore, manga.Year, manga.OriginalLanguage, authors, tags, links, altTitles, manga.LibraryId);
+        Manga result = new (manga.Key, manga.Name, manga.Description, manga.ReleaseStatus, ids, manga.IgnoreChaptersBefore, manga.Year, manga.OriginalLanguage, authors, tags, links, altTitles, manga.LibraryId, manga.AutoConvertToEpub);
         
         return TypedResults.Ok(result);
     }
@@ -134,17 +134,26 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
     /// downscaled to a Kindle Paperwhite's resolution), replacing the .cbz on disk. This is destructive
     /// (the .cbz is deleted once the .epub for it is written) and queues one Worker per Chapter in the
     /// background rather than converting synchronously, since a large Manga can have thousands of them.
+    /// Also marks the Manga for auto-conversion, so Chapters downloaded after this point get converted
+    /// to .epub automatically as soon as they finish downloading (see DownloadChapterFromMangaconnectorWorker),
+    /// instead of being left as .cbz until the next manual ConvertToEpub call.
     /// </summary>
     /// <param name="MangaId"><see cref="Manga"/>.Key</param>
     /// <response code="200">Conversion jobs have been queued</response>
     /// <response code="404"><paramref name="MangaId"/> not found</response>
+    /// <response code="500">Error during Database Operation</response>
     [HttpPost("{MangaId}/ConvertToEpub")]
     [ProducesResponseType(Status200OK)]
     [ProducesResponseType<string>(Status404NotFound, "text/plain")]
-    public async Task<Results<Ok, NotFound<string>>> ConvertToEpub(string MangaId)
+    [ProducesResponseType<string>(Status500InternalServerError, "text/plain")]
+    public async Task<Results<Ok, NotFound<string>, InternalServerError<string>>> ConvertToEpub(string MangaId)
     {
         if (await context.Mangas.Include(m => m.Chapters).FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
             return TypedResults.NotFound(nameof(MangaId));
+
+        manga.AutoConvertToEpub = true;
+        if (await context.Sync(HttpContext.RequestAborted, GetType(), System.Reflection.MethodBase.GetCurrentMethod()?.Name) is { success: false } result)
+            return TypedResults.InternalServerError(result.exceptionMessage);
 
         BaseWorker[] workers = manga.Chapters.Where(c => c.Downloaded)
             .Select(c => (BaseWorker)new ConvertChapterToEpubWorker(c))
@@ -375,7 +384,7 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
             IEnumerable<string> tags = m.MangaTags.Select(t => t.Tag);
             IEnumerable<Link> links = m.Links.Select(l => new Link(l.Key, l.LinkProvider, l.LinkUrl));
             IEnumerable<AltTitle> altTitles = m.AltTitles.Select(a => new AltTitle(a.Language, a.Title));
-            return new Manga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids, m.IgnoreChaptersBefore, m.Year, m.OriginalLanguage, authors, tags, links, altTitles, m.LibraryId);
+            return new Manga(m.Key, m.Name, m.Description, m.ReleaseStatus, ids, m.IgnoreChaptersBefore, m.Year, m.OriginalLanguage, authors, tags, links, altTitles, m.LibraryId, m.AutoConvertToEpub);
         }).ToList());
     }
     

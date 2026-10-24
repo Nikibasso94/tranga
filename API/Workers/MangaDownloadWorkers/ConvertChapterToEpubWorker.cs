@@ -79,7 +79,10 @@ public class ConvertChapterToEpubWorker(Chapter chapter, IEnumerable<BaseWorker>
             }
 
             string epubPath = Path.ChangeExtension(archivePath, ".epub");
-            string tempPath = epubPath + ".tmp";
+            // Unique per run (not just epubPath + ".tmp") so two conversions racing for the same
+            // Chapter (e.g. a duplicate download, see DownloadChapterFromMangaconnectorWorker) don't
+            // write to the same temp file at once.
+            string tempPath = $"{epubPath}.{Guid.NewGuid():N}.tmp";
             // Not chap.ToString() - that includes the raw internal Key (Identifiable.ToString()),
             // meant for logging, not a title a reader would actually see on their Kindle.
             string title = chap.VolumeNumber is { } vol

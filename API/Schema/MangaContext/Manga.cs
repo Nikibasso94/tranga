@@ -27,6 +27,13 @@ public class Manga : Identifiable
     [StringLength(512)] public string? CoverFileNameInCache { get; internal set; }
     public uint? Year { get; internal init; }
     [StringLength(8)] public string? OriginalLanguage { get; internal init; }
+
+    /// <summary>
+    /// When set, every Chapter downloaded for this Manga from now on is automatically converted to
+    /// a Kindle-friendly .epub right after downloading (see DownloadChapterFromMangaconnectorWorker),
+    /// instead of requiring a manual ConvertToEpub call for each newly-released Chapter.
+    /// </summary>
+    public bool AutoConvertToEpub { get; internal set; }
     
     
     /// <exception cref="DirectoryNotFoundException">Library not loaded</exception>

@@ -118,6 +118,108 @@
         }
       }
     },
+    "/v2/Auth/Enabled": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Whether a username/password is required to use the API. Always anonymous - the frontend needs\nthis before it knows whether to show a login page at all.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Auth/Login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logs in with the username/password configured via AUTH_USERNAME/AUTH_PASSWORD, setting an\nHttpOnly session cookie on success.",
+        "requestBody": {
+          "content": {
+            "application/json-patch+json; x-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            },
+            "application/json; x-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            },
+            "text/json; x-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            },
+            "application/*+json; x-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Auth/Session": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Returns 200 if the caller has a valid session, 401 otherwise (enforced by the FallbackPolicy).\nUsed by the frontend to decide whether to show the login page.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/v2/Auth/Logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/v2/Chapters/Manga/{MangaId}": {
       "post": {
         "tags": [
@@ -1325,6 +1427,50 @@
           },
           "404": {
             "description": "API.Controllers.DTOs.Manga with MangaId not found",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error during Database Operation",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Manga/{MangaId}/ConvertToEpub": {
+      "post": {
+        "tags": [
+          "Manga"
+        ],
+        "summary": "Converts every downloaded Chapter of a Manga to a Kindle-friendly .epub (fixed-layout, grayscale,\ndownscaled to a Kindle Paperwhite's resolution), replacing the .cbz on disk. This is destructive\n(the .cbz is deleted once the .epub for it is written) and queues one Worker per Chapter in the\nbackground rather than converting synchronously, since a large Manga can have thousands of them.\nAlso marks the Manga for auto-conversion, so Chapters downloaded after this point get converted\nto .epub automatically as soon as they finish downloading (see DownloadChapterFromMangaconnectorWorker),\ninstead of being left as .cbz until the next manual ConvertToEpub call.",
+        "parameters": [
+          {
+            "name": "MangaId",
+            "in": "path",
+            "description": "API.Controllers.DTOs.Manga.Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversion jobs have been queued"
+          },
+          "404": {
+            "description": "MangaId not found",
             "content": {
               "text/plain; x-version=2.0": {
                 "schema": {
@@ -3599,6 +3745,72 @@
         }
       }
     },
+    "/v2/Settings/CheckForNewChaptersIntervalMinutes": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Returns how often (in minutes) Manga are checked for new Chapters",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/Settings/CheckForNewChaptersIntervalMinutes/{value}": {
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Sets how often (in minutes) Manga are checked for new Chapters",
+        "parameters": [
+          {
+            "name": "value",
+            "in": "path",
+            "description": "Minimum of 30",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "Value outside permitted range",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v2/Settings/LibraryRefresh": {
       "patch": {
         "tags": [
@@ -4493,10 +4705,25 @@
         "additionalProperties": false,
         "description": "API.Schema.MangaContext.Link DTO"
       },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "Manga": {
         "required": [
           "altTitles",
           "authors",
+          "autoConvertToEpub",
           "description",
           "downloadedChapters",
           "fileLibraryId",
@@ -4559,6 +4786,10 @@
             "minLength": 1,
             "type": "string",
             "description": "Id of the Library the Manga gets downloaded to"
+          },
+          "autoConvertToEpub": {
+            "type": "boolean",
+            "description": "Whether newly-downloaded Chapters are automatically converted to Kindle-friendly .epub"
           },
           "name": {
             "minLength": 1,
@@ -5008,6 +5239,10 @@
           "refreshLibraryWhileDownloadingEveryMinutes": {
             "type": "integer",
             "format": "int32"
+          },
+          "checkForNewChaptersIntervalMinutes": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -5092,6 +5327,9 @@
   "tags": [
     {
       "name": "Actions"
+    },
+    {
+      "name": "Auth"
     },
     {
       "name": "Chapters"

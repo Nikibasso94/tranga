@@ -264,7 +264,13 @@ public class DownloadChapterFromMangaconnectorWorker(MangaConnectorId<Chapter> c
         if(refreshLibrary)
             Log.Info($"Condition {Tranga.Settings.LibraryRefreshSetting} met.");
 
-        return refreshLibrary? [new RefreshLibrariesWorker()] : [];
+        List<BaseWorker> followUpWorkers = [];
+        if (refreshLibrary)
+            followUpWorkers.Add(new RefreshLibrariesWorker());
+        if (chapter.ParentManga.AutoConvertToEpub)
+            followUpWorkers.Add(new ConvertChapterToEpubWorker(chapter));
+
+        return followUpWorkers.ToArray();
     }
 
     /// <summary>
