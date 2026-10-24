@@ -3126,6 +3126,29 @@
         }
       }
     },
+    "/v2/Stats/EpubConversion": {
+      "get": {
+        "tags": [
+          "Query"
+        ],
+        "summary": "Returns, per Manga with at least one downloaded Chapter, how many of those Chapters have been\nconverted to .epub (see API.Workers.MangaDownloadWorkers.ConvertChapterToEpubWorker),\ndescending by number of Chapters still left to convert",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json; x-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EpubConversionByManga"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v2/Search/{MangaConnectorName}/{Query}": {
       "get": {
         "tags": [
@@ -4608,6 +4631,31 @@
         },
         "additionalProperties": false
       },
+      "EpubConversionByManga": {
+        "type": "object",
+        "properties": {
+          "mangaId": {
+            "type": "string",
+            "nullable": true
+          },
+          "mangaName": {
+            "type": "string",
+            "nullable": true
+          },
+          "downloadedChapters": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "epubChapters": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "autoConvertToEpub": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "FileLibrary": {
         "required": [
           "basePath",
@@ -5154,7 +5202,7 @@
             "nullable": true
           }
         },
-        "additionalProperties": { }
+        "additionalProperties": {}
       },
       "Stats": {
         "type": "object",
@@ -5172,6 +5220,10 @@
             "format": "int32"
           },
           "downloadedChapters": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "epubChapters": {
             "type": "integer",
             "format": "int32"
           },

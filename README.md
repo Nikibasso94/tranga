@@ -65,6 +65,7 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - How often manga are checked for new chapters is now configurable at runtime (`CheckForNewChaptersIntervalMinutes`, minimum 30) instead of a fixed 3-hour interval set only via an env var at startup
 - Optional username/password login: set `AUTH_USERNAME`/`AUTH_PASSWORD` to require `POST /v2/Auth/Login` (HttpOnly JWT cookie) before any other endpoint works. Left unset (the default), every deployment keeps working exactly as before, unauthenticated
 - `POST /v2/Manga/{MangaId}/ConvertToEpub` converts every downloaded Chapter of a Manga into a Kindle-compatible fixed-layout `.epub` (pages downscaled/grayscaled to a Paperwhite's resolution), replacing the `.cbz` on disk - destructive by design, queued as background workers per Chapter. Also flips on `AutoConvertToEpub` for the Manga, so Chapters downloaded afterwards are converted automatically as soon as they finish downloading, instead of staying `.cbz` until the next manual call
+- `GET /v2/Stats/EpubConversion` returns, per Manga with at least one downloaded Chapter, how many of those Chapters are `.epub` vs still `.cbz`; `GET /v2/Stats` also includes a system-wide `EpubChapters` count
 
 **Infrastructure**
 - Docker images are published to `ghcr.io/nikibasso94/tranga-api` instead of the upstream Docker Hub namespace

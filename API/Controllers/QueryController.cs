@@ -49,10 +49,11 @@ public class QueryController(MangaContext mangaContext) : ControllerBase
                                                                                     (SELECT count("Key") "{nameof(Stats.NumberChapters)}" FROM "Chapters") b CROSS JOIN
                                                                                     (SELECT count("Key") "{nameof(Stats.DownloadedChapters)}" FROM "Chapters" WHERE "Downloaded" = true) c CROSS JOIN
                                                                                     (SELECT count("Key") "{nameof(Stats.MissingChapters)}" FROM "Chapters" WHERE "Downloaded" = false) d CROSS JOIN
-                                                                                    (SELECT count("Key") "{nameof(Stats.SentNotifications)}" FROM "Notifications" WHERE "IsSent" = true) e CROSS JOIN 
-                                                                                    (SELECT count("Key") "{nameof(Stats.ActionsTaken)}" FROM "Actions") f CROSS JOIN 
+                                                                                    (SELECT count("Key") "{nameof(Stats.SentNotifications)}" FROM "Notifications" WHERE "IsSent" = true) e CROSS JOIN
+                                                                                    (SELECT count("Key") "{nameof(Stats.ActionsTaken)}" FROM "Actions") f CROSS JOIN
                                                                                     (SELECT count("Key") "{nameof(Stats.NumberAuthors)}" FROM "Authors") g CROSS JOIN
-                                                                                    (SELECT count("Tag") "{nameof(Stats.NumberTags)}" FROM "Tags") h
+                                                                                    (SELECT count("Tag") "{nameof(Stats.NumberTags)}" FROM "Tags") h CROSS JOIN
+                                                                                    (SELECT count("Key") "{nameof(Stats.EpubChapters)}" FROM "Chapters" WHERE "FileName" LIKE '%.epub') i
                                                                                     
                                                                    """).FirstAsync(HttpContext.RequestAborted);
         return TypedResults.Ok(stats);
@@ -78,6 +79,37 @@ public class QueryController(MangaContext mangaContext) : ControllerBase
 
         List<MissingChaptersByManga> result = missingByManga
             .Select(g => new MissingChaptersByManga(g.ParentMangaId, g.Name, g.MissingCount))
+            .ToList();
+        return TypedResults.Ok(result);
+    }
+
+    /// <summary>
+    /// Returns, per Manga with at least one downloaded Chapter, how many of those Chapters have been
+    /// converted to .epub (see <see cref="API.Workers.MangaDownloadWorkers.ConvertChapterToEpubWorker"/>),
+    /// descending by number of Chapters still left to convert
+    /// </summary>
+    /// <response code="200"></response>
+    [HttpGet("Stats/EpubConversion")]
+    [ProducesResponseType<List<EpubConversionByManga>>(Status200OK, "application/json")]
+    public async Task<Ok<List<EpubConversionByManga>>> GetEpubConversionByManga()
+    {
+        // EF Core can't translate a GroupBy projected straight into a record constructor -
+        // project into an anonymous type (translatable to SQL GROUP BY/COUNT) first, then
+        // build the DTO client-side after materializing.
+        var epubByManga = await mangaContext.Chapters
+            .Where(c => c.Downloaded)
+            .GroupBy(c => new { c.ParentMangaId, c.ParentManga.Name, c.ParentManga.AutoConvertToEpub })
+            .Select(g => new
+            {
+                g.Key.ParentMangaId, g.Key.Name, g.Key.AutoConvertToEpub,
+                DownloadedCount = g.Count(),
+                EpubCount = g.Count(c => c.FileName != null && c.FileName.EndsWith(".epub"))
+            })
+            .OrderByDescending(g => g.DownloadedCount - g.EpubCount)
+            .ToListAsync(HttpContext.RequestAborted);
+
+        List<EpubConversionByManga> result = epubByManga
+            .Select(g => new EpubConversionByManga(g.ParentMangaId, g.Name, g.DownloadedCount, g.EpubCount, g.AutoConvertToEpub))
             .ToList();
         return TypedResults.Ok(result);
     }
