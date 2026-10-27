@@ -166,6 +166,32 @@ public class MangaController(MangaContext context, ActionsContext actionsContext
         return TypedResults.Ok();
     }
 
+    /// <summary>
+    /// Immediately re-fetches this Manga's Chapter list from every Connector it's marked for download
+    /// from, picking up newly-published Chapters and refreshing stale Chapter links (e.g. after the
+    /// source site changes domain or renumbers its internal ids - see
+    /// RetrieveMangaChaptersFromMangaconnectorWorker) right away, instead of waiting for the next
+    /// periodic chapter check (which also covers every other Manga, not just this one).
+    /// </summary>
+    /// <param name="MangaId"><see cref="Manga"/>.Key</param>
+    /// <response code="200">Refresh jobs have been queued</response>
+    /// <response code="404"><paramref name="MangaId"/> not found</response>
+    [HttpPost("{MangaId}/RefreshChapterList")]
+    [ProducesResponseType(Status200OK)]
+    [ProducesResponseType<string>(Status404NotFound, "text/plain")]
+    public async Task<Results<Ok, NotFound<string>>> RefreshChapterList(string MangaId)
+    {
+        if (await context.Mangas.Include(m => m.MangaConnectorIds)
+                .FirstOrDefaultAsync(m => m.Key == MangaId, HttpContext.RequestAborted) is not { } manga)
+            return TypedResults.NotFound(nameof(MangaId));
+
+        BaseWorker[] workers = manga.MangaConnectorIds.Where(id => id.UseForDownload)
+            .Select(id => (BaseWorker)new RetrieveMangaChaptersFromMangaconnectorWorker(id, Tranga.Settings.DownloadLanguage))
+            .ToArray();
+        Tranga.AddWorkers(workers);
+
+        return TypedResults.Ok();
+    }
 
     /// <summary>
     /// Merge two <see cref="Manga"/> into one. THIS IS NOT REVERSIBLE!

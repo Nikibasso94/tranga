@@ -1492,6 +1492,40 @@
         }
       }
     },
+    "/v2/Manga/{MangaId}/RefreshChapterList": {
+      "post": {
+        "tags": [
+          "Manga"
+        ],
+        "summary": "Immediately re-fetches this Manga's Chapter list from every Connector it's marked for download\nfrom, picking up newly-published Chapters and refreshing stale Chapter links (e.g. after the\nsource site changes domain or renumbers its internal ids - see\nRetrieveMangaChaptersFromMangaconnectorWorker) right away, instead of waiting for the next\nperiodic chapter check (which also covers every other Manga, not just this one).",
+        "parameters": [
+          {
+            "name": "MangaId",
+            "in": "path",
+            "description": "API.Controllers.DTOs.Manga.Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refresh jobs have been queued"
+          },
+          "404": {
+            "description": "MangaId not found",
+            "content": {
+              "text/plain; x-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v2/Manga/{MangaIdFrom}/MergeInto/{MangaIdInto}": {
       "post": {
         "tags": [

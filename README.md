@@ -66,6 +66,7 @@ This is [Nikibasso94](https://github.com/Nikibasso94)'s fork of [C9Glax/tranga](
 - Optional username/password login: set `AUTH_USERNAME`/`AUTH_PASSWORD` to require `POST /v2/Auth/Login` (HttpOnly JWT cookie) before any other endpoint works. Left unset (the default), every deployment keeps working exactly as before, unauthenticated
 - `POST /v2/Manga/{MangaId}/ConvertToEpub` converts every downloaded Chapter of a Manga into a Kindle-compatible fixed-layout `.epub` (pages downscaled/grayscaled to a Paperwhite's resolution), replacing the `.cbz` on disk - destructive by design, queued as background workers per Chapter. Also flips on `AutoConvertToEpub` for the Manga, so Chapters downloaded afterwards are converted automatically as soon as they finish downloading, instead of staying `.cbz` until the next manual call
 - `GET /v2/Stats/EpubConversion` returns, per Manga with at least one downloaded Chapter, how many of those Chapters are `.epub` vs still `.cbz`; `GET /v2/Stats` also includes a system-wide `EpubChapters` count
+- `POST /v2/Manga/{MangaId}/RefreshChapterList` immediately re-scans a single Manga's Chapter list from its Connectors (picking up new Chapters and fixing stale Chapter links, e.g. after a source site changes domain or renumbers its internal ids) instead of waiting for the next periodic check, which covers every Manga
 
 **Infrastructure**
 - Docker images are published to `ghcr.io/nikibasso94/tranga-api` instead of the upstream Docker Hub namespace
